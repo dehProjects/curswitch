@@ -1,12 +1,8 @@
-# contactor
-This repo is for the battery-to-invertor contactor control, 
+#curswitch
 
-The hardware uses the f103Ard pcb (see GliderWinchCommons/embed/svn_sensor/hw/trunk/eagle/f103Ard)
+Sense 110ac current and turn on secondary 110ac load. 
 
-The processor is Blue Pill STM32F103 sub-board that mounts on the pcb.
-The key configuration items of the board--
-- Non-isolated CAN driver 
-- Two Hall-effect current sensors for battery and motor currect
-- Two isolated FET drivers for contactors using off-board sub-board
-- Isolated high voltage measurement via isolated uart RX
-- One small fet to pull invertor /enable line
+Hall-effect sensor senses sump pump current. Solid State Relay turns on booster pump.
+Over-the-top implmentation. Uses f103Ard pcb with Blue Pill. (See GliderWinchCommons/svn_sensor/hw.)
+
+Generally this is not something a sane person would want to duplicated unless they have a junk box with the same stuff I have accumulated.
