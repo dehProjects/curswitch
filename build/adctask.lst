@@ -1,0 +1,483 @@
+ARM GAS  /tmp/ccJxd9fA.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"adctask.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.adctask_init,"ax",%progbits
+  20              		.align	2
+  21              		.global	adctask_init
+  22              		.thumb
+  23              		.thumb_func
+  25              	adctask_init:
+  26              	.LFB69:
+  27              		.file 1 "Ourwares/adctask.c"
+   1:Ourwares/adctask.c **** /******************************************************************************
+   2:Ourwares/adctask.c **** * File Name          : adctask.c
+   3:Ourwares/adctask.c **** * Date First Issued  : 02/01/2019
+   4:Ourwares/adctask.c **** * Description        : Handle ADC w DMA using FreeRTOS/ST HAL within a task
+   5:Ourwares/adctask.c **** *******************************************************************************/
+   6:Ourwares/adctask.c **** 
+   7:Ourwares/adctask.c **** #include "FreeRTOS.h"
+   8:Ourwares/adctask.c **** #include "cmsis_os.h"
+   9:Ourwares/adctask.c **** #include "malloc.h"
+  10:Ourwares/adctask.c **** #include "adctask.h"
+  11:Ourwares/adctask.c **** #include "adcparams.h"
+  12:Ourwares/adctask.c **** #include "adcfastsum16.h"
+  13:Ourwares/adctask.c **** #include "ADCTask.h"
+  14:Ourwares/adctask.c **** 
+  15:Ourwares/adctask.c **** #include "morse.h"
+  16:Ourwares/adctask.c **** 
+  17:Ourwares/adctask.c **** extern ADC_HandleTypeDef hadc1;
+  18:Ourwares/adctask.c **** 
+  19:Ourwares/adctask.c **** struct ADCDMATSKBLK adc1dmatskblk[ADCNUM];
+  20:Ourwares/adctask.c **** 
+  21:Ourwares/adctask.c **** /* *************************************************************************
+  22:Ourwares/adctask.c ****  * struct ADCDMATSKBLK* adctask_init(ADC_HandleTypeDef* phadc,\
+  23:Ourwares/adctask.c **** 	 uint32_t  notebit1,\
+  24:Ourwares/adctask.c **** 	 uint32_t  notebit2,\
+  25:Ourwares/adctask.c **** 	 uint32_t* pnoteval);
+  26:Ourwares/adctask.c ****  *	@brief	: Setup ADC DMA buffers and control block
+  27:Ourwares/adctask.c ****  * @param	: phadc = pointer to 'MX ADC control block
+  28:Ourwares/adctask.c ****  * @param	: notebit1 = unique bit for notification @ 1/2 dma buffer
+  29:Ourwares/adctask.c ****  * @param	: notebit2 = unique bit for notification @ end dma buffer
+  30:Ourwares/adctask.c ****  * @param	: pnoteval = pointer to word receiving notification word from OS
+  31:Ourwares/adctask.c ****  * @return	: NULL = fail
+ARM GAS  /tmp/ccJxd9fA.s 			page 2
+
+
+  32:Ourwares/adctask.c ****  * *************************************************************************/
+  33:Ourwares/adctask.c **** /*
+  34:Ourwares/adctask.c ****    notebit1 notify at the halfway dma buffer point
+  35:Ourwares/adctask.c ****      associates with pdma (beginning of dma buffer)
+  36:Ourwares/adctask.c ****    notebit2 notify at the end of the dma buffer
+  37:Ourwares/adctask.c ****      associates with pdma + dmact * phadc->Init.NbrOfConversion
+  38:Ourwares/adctask.c **** */
+  39:Ourwares/adctask.c **** 
+  40:Ourwares/adctask.c **** struct ADCDMATSKBLK* adctask_init(ADC_HandleTypeDef* phadc,\
+  41:Ourwares/adctask.c **** 	uint32_t  notebit1,\
+  42:Ourwares/adctask.c **** 	uint32_t  notebit2,\
+  43:Ourwares/adctask.c **** 	uint32_t* pnoteval)
+  44:Ourwares/adctask.c **** {
+  28              		.loc 1 44 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              	.LVL0:
+  33 0000 2DE9F047 		push	{r4, r5, r6, r7, r8, r9, r10, lr}
+  34              	.LCFI0:
+  35              		.cfi_def_cfa_offset 32
+  36              		.cfi_offset 4, -32
+  37              		.cfi_offset 5, -28
+  38              		.cfi_offset 6, -24
+  39              		.cfi_offset 7, -20
+  40              		.cfi_offset 8, -16
+  41              		.cfi_offset 9, -12
+  42              		.cfi_offset 10, -8
+  43              		.cfi_offset 14, -4
+  44 0004 0546     		mov	r5, r0
+  45 0006 8A46     		mov	r10, r1
+  46 0008 9146     		mov	r9, r2
+  47 000a 9846     		mov	r8, r3
+  48              	.LVL1:
+  45:Ourwares/adctask.c **** 	uint16_t* pdma;
+  46:Ourwares/adctask.c **** 	struct ADCDMATSKBLK* pblk = &adc1dmatskblk[0]; // ADC1 only for now
+  47:Ourwares/adctask.c **** 
+  48:Ourwares/adctask.c **** 	/* 'adcparams.h' MUST match what STM32CubeMX set up. */
+  49:Ourwares/adctask.c **** 	if (ADC1IDX_ADCSCANSIZE != phadc->Init.NbrOfConversion) morse_trap(61);//return NULL;
+  49              		.loc 1 49 0
+  50 000c 0369     		ldr	r3, [r0, #16]
+  51              	.LVL2:
+  52 000e 062B     		cmp	r3, #6
+  53 0010 02D0     		beq	.L2
+  54              		.loc 1 49 0 is_stmt 0 discriminator 1
+  55 0012 3D20     		movs	r0, #61
+  56              	.LVL3:
+  57 0014 FFF7FEFF 		bl	morse_trap
+  58              	.LVL4:
+  59              	.L2:
+  50:Ourwares/adctask.c **** 
+  51:Ourwares/adctask.c **** 	/* ADC DMA summation length must match 1/2 DMA buffer sizing. */
+  52:Ourwares/adctask.c **** 	if (ADCFASTSUM16SIZE != ADC1DMANUMSEQ) morse_trap(62);
+  53:Ourwares/adctask.c **** 
+  54:Ourwares/adctask.c **** 	/* length = total number of uint16_t in dma buffer */
+  55:Ourwares/adctask.c **** 	uint32_t length = ADC1DMANUMSEQ * 2 * phadc->Init.NbrOfConversion;
+  60              		.loc 1 55 0 is_stmt 1
+ARM GAS  /tmp/ccJxd9fA.s 			page 3
+
+
+  61 0018 2E69     		ldr	r6, [r5, #16]
+  62 001a 7601     		lsls	r6, r6, #5
+  63              	.LVL5:
+  56:Ourwares/adctask.c **** 
+  57:Ourwares/adctask.c **** taskENTER_CRITICAL();
+  64              		.loc 1 57 0
+  65 001c FFF7FEFF 		bl	vPortEnterCritical
+  66              	.LVL6:
+  58:Ourwares/adctask.c **** 
+  59:Ourwares/adctask.c **** 	/* Initialize params for ADC. */
+  60:Ourwares/adctask.c **** 	adcparams_init();
+  67              		.loc 1 60 0
+  68 0020 FFF7FEFF 		bl	adcparams_init
+  69              	.LVL7:
+  61:Ourwares/adctask.c **** 
+  62:Ourwares/adctask.c **** 	/* Get dma buffer allocated */
+  63:Ourwares/adctask.c **** 	pdma = (uint16_t*)calloc(length, sizeof(uint16_t));
+  70              		.loc 1 63 0
+  71 0024 0221     		movs	r1, #2
+  72 0026 3046     		mov	r0, r6
+  73 0028 FFF7FEFF 		bl	calloc
+  74              	.LVL8:
+  64:Ourwares/adctask.c **** 	if (pdma == NULL) {taskEXIT_CRITICAL();morse_trap(63);}
+  75              		.loc 1 64 0
+  76 002c 0746     		mov	r7, r0
+  77 002e 20B9     		cbnz	r0, .L3
+  78              		.loc 1 64 0 is_stmt 0 discriminator 1
+  79 0030 FFF7FEFF 		bl	vPortExitCritical
+  80              	.LVL9:
+  81 0034 3F20     		movs	r0, #63
+  82 0036 FFF7FEFF 		bl	morse_trap
+  83              	.LVL10:
+  84              	.L3:
+  65:Ourwares/adctask.c **** 
+  66:Ourwares/adctask.c **** 	/* Populate our control block */
+  67:Ourwares/adctask.c **** /* The following reproduced for convenience--
+  68:Ourwares/adctask.c **** struct ADCDMATSKBLK
+  69:Ourwares/adctask.c **** {
+  70:Ourwares/adctask.c **** 	struct ADCDMATSKBLK* pnext;
+  71:Ourwares/adctask.c **** 	ADC_HandleTypeDef* phadc; // Pointer to 'MX adc control block
+  72:Ourwares/adctask.c **** 	uint32_t  notebit1; // Notification bit for dma half complete interrupt
+  73:Ourwares/adctask.c **** 	uint32_t  notebit2; // Notification bit for dma complete interrupt
+  74:Ourwares/adctask.c **** 	uint32_t* pnoteval; // Pointer to notification word
+  75:Ourwares/adctask.c **** 	uint16_t* pdma1;    // Pointer to first half of dma buffer
+  76:Ourwares/adctask.c **** 	uint16_t* pdma2;    // Pointer to second half of dma buffer
+  77:Ourwares/adctask.c **** 	osThreadId adctaskHandle;
+  78:Ourwares/adctask.c **** 	uint32_t* psum;     // Pointer summed 1/2 dma buffer
+  79:Ourwares/adctask.c **** 	uint16_t  dmact;    // Number of sequences in 1/2 dma buffer
+  80:Ourwares/adctask.c **** };
+  81:Ourwares/adctask.c **** 
+  82:Ourwares/adctask.c **** */
+  83:Ourwares/adctask.c **** 	pblk->phadc    = phadc;
+  85              		.loc 1 83 0 is_stmt 1
+  86 003a 0E4C     		ldr	r4, .L5
+  87 003c 6560     		str	r5, [r4, #4]
+  84:Ourwares/adctask.c **** 	pblk->notebit1 = notebit1;
+  88              		.loc 1 84 0
+ARM GAS  /tmp/ccJxd9fA.s 			page 4
+
+
+  89 003e C4F808A0 		str	r10, [r4, #8]
+  85:Ourwares/adctask.c **** 	pblk->notebit2 = notebit2;
+  90              		.loc 1 85 0
+  91 0042 C4F80C90 		str	r9, [r4, #12]
+  86:Ourwares/adctask.c **** 	pblk->pnoteval = pnoteval;
+  92              		.loc 1 86 0
+  93 0046 C4F81080 		str	r8, [r4, #16]
+  87:Ourwares/adctask.c **** 	pblk->pdma1    = pdma;
+  94              		.loc 1 87 0
+  95 004a 6761     		str	r7, [r4, #20]
+  88:Ourwares/adctask.c **** 	pblk->pdma2    = pdma + (ADC1DMANUMSEQ * phadc->Init.NbrOfConversion);
+  96              		.loc 1 88 0
+  97 004c 2B69     		ldr	r3, [r5, #16]
+  98 004e 07EB4317 		add	r7, r7, r3, lsl #5
+  99              	.LVL11:
+ 100 0052 A761     		str	r7, [r4, #24]
+  89:Ourwares/adctask.c **** 	pblk->adctaskHandle = ADCTaskHandle;
+ 101              		.loc 1 89 0
+ 102 0054 084B     		ldr	r3, .L5+4
+ 103 0056 1B68     		ldr	r3, [r3]
+ 104 0058 E361     		str	r3, [r4, #28]
+  90:Ourwares/adctask.c **** 
+  91:Ourwares/adctask.c **** /**
+  92:Ourwares/adctask.c ****   * @brief  Enables ADC DMA request after last transfer (Single-ADC mode) and enables ADC periphera
+  93:Ourwares/adctask.c ****   * @param  hadc pointer to a ADC_HandleTypeDef structure that contains
+  94:Ourwares/adctask.c ****   *         the configuration information for the specified ADC.
+  95:Ourwares/adctask.c ****   * @param  pData The destination Buffer address.
+  96:Ourwares/adctask.c ****   * @param  Length The length of data to be transferred from ADC peripheral to memory.
+  97:Ourwares/adctask.c ****   * @retval HAL status
+  98:Ourwares/adctask.c ****   */
+  99:Ourwares/adctask.c **** 
+ 100:Ourwares/adctask.c **** taskEXIT_CRITICAL();
+ 105              		.loc 1 100 0
+ 106 005a FFF7FEFF 		bl	vPortExitCritical
+ 107              	.LVL12:
+ 101:Ourwares/adctask.c **** 	
+ 102:Ourwares/adctask.c **** 	HAL_ADCEx_Calibration_Start(phadc);
+ 108              		.loc 1 102 0
+ 109 005e 2846     		mov	r0, r5
+ 110 0060 FFF7FEFF 		bl	HAL_ADCEx_Calibration_Start
+ 111              	.LVL13:
+ 103:Ourwares/adctask.c **** 
+ 104:Ourwares/adctask.c **** 	HAL_ADC_Start_DMA(pblk->phadc, (uint32_t*)pblk->pdma1, length);
+ 112              		.loc 1 104 0
+ 113 0064 3246     		mov	r2, r6
+ 114 0066 6169     		ldr	r1, [r4, #20]
+ 115 0068 6068     		ldr	r0, [r4, #4]
+ 116 006a FFF7FEFF 		bl	HAL_ADC_Start_DMA
+ 117              	.LVL14:
+ 105:Ourwares/adctask.c **** 	return pblk;
+ 106:Ourwares/adctask.c **** }
+ 118              		.loc 1 106 0
+ 119 006e 2046     		mov	r0, r4
+ 120 0070 BDE8F087 		pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+ 121              	.LVL15:
+ 122              	.L6:
+ 123              		.align	2
+ARM GAS  /tmp/ccJxd9fA.s 			page 5
+
+
+ 124              	.L5:
+ 125 0074 00000000 		.word	adc1dmatskblk
+ 126 0078 00000000 		.word	ADCTaskHandle
+ 127              		.cfi_endproc
+ 128              	.LFE69:
+ 130              		.section	.text.HAL_ADC_ConvHalfCpltCallback,"ax",%progbits
+ 131              		.align	2
+ 132              		.global	HAL_ADC_ConvHalfCpltCallback
+ 133              		.thumb
+ 134              		.thumb_func
+ 136              	HAL_ADC_ConvHalfCpltCallback:
+ 137              	.LFB70:
+ 107:Ourwares/adctask.c **** 
+ 108:Ourwares/adctask.c **** /* #######################################################################
+ 109:Ourwares/adctask.c ****    ADC DMA interrupt callbacks
+ 110:Ourwares/adctask.c ****    ####################################################################### */
+ 111:Ourwares/adctask.c **** /* *************************************************************************
+ 112:Ourwares/adctask.c ****  * void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc);
+ 113:Ourwares/adctask.c ****  *	@brief	: Call back from stm32f4xx_hal_adc: Halfway point of dma buffer
+ 114:Ourwares/adctask.c ****  * *************************************************************************/
+ 115:Ourwares/adctask.c **** /* *************************************************************************
+ 116:Ourwares/adctask.c ****  * void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc);
+ 117:Ourwares/adctask.c ****  *	@brief	: Call back from stm32f4xx_hal_adc: Halfway point of dma buffer
+ 118:Ourwares/adctask.c ****  * *************************************************************************/
+ 119:Ourwares/adctask.c **** void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
+ 120:Ourwares/adctask.c **** {
+ 138              		.loc 1 120 0
+ 139              		.cfi_startproc
+ 140              		@ args = 0, pretend = 0, frame = 8
+ 141              		@ frame_needed = 0, uses_anonymous_args = 0
+ 142              	.LVL16:
+ 143 0000 00B5     		push	{lr}
+ 144              	.LCFI1:
+ 145              		.cfi_def_cfa_offset 4
+ 146              		.cfi_offset 14, -4
+ 147 0002 85B0     		sub	sp, sp, #20
+ 148              	.LCFI2:
+ 149              		.cfi_def_cfa_offset 24
+ 121:Ourwares/adctask.c **** //	adcommon.dmact += 1; // Running count
+ 122:Ourwares/adctask.c **** 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+ 150              		.loc 1 122 0
+ 151 0004 0023     		movs	r3, #0
+ 152 0006 0393     		str	r3, [sp, #12]
+ 153              	.LVL17:
+ 123:Ourwares/adctask.c **** 	struct ADCDMATSKBLK* ptmp = &adc1dmatskblk[0];
+ 124:Ourwares/adctask.c **** 
+ 125:Ourwares/adctask.c **** 	/* Trigger Recieve Task to poll dma uarts */
+ 126:Ourwares/adctask.c **** 	if( ptmp->adctaskHandle == NULL) return; // Skip task has not been created
+ 154              		.loc 1 126 0
+ 155 0008 0B4B     		ldr	r3, .L10
+ 156 000a D869     		ldr	r0, [r3, #28]
+ 157              	.LVL18:
+ 158 000c 80B1     		cbz	r0, .L7
+ 127:Ourwares/adctask.c **** 	xTaskNotifyFromISR(ptmp->adctaskHandle, 
+ 159              		.loc 1 127 0
+ 160 000e 9968     		ldr	r1, [r3, #8]
+ 161 0010 03AB     		add	r3, sp, #12
+ARM GAS  /tmp/ccJxd9fA.s 			page 6
+
+
+ 162 0012 0093     		str	r3, [sp]
+ 163 0014 0023     		movs	r3, #0
+ 164 0016 0122     		movs	r2, #1
+ 165 0018 FFF7FEFF 		bl	xTaskGenericNotifyFromISR
+ 166              	.LVL19:
+ 128:Ourwares/adctask.c **** 		ptmp->notebit1,	/* 'or' bit assigned to buffer to notification value. */
+ 129:Ourwares/adctask.c **** 		eSetBits,      /* Set 'or' option */
+ 130:Ourwares/adctask.c **** 		&xHigherPriorityTaskWoken ); 
+ 131:Ourwares/adctask.c **** 
+ 132:Ourwares/adctask.c **** 	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+ 167              		.loc 1 132 0
+ 168 001c 039B     		ldr	r3, [sp, #12]
+ 169 001e 3BB1     		cbz	r3, .L7
+ 170              		.loc 1 132 0 is_stmt 0 discriminator 1
+ 171 0020 4FF08052 		mov	r2, #268435456
+ 172 0024 054B     		ldr	r3, .L10+4
+ 173 0026 1A60     		str	r2, [r3]
+ 174              		.syntax unified
+ 175              	@ 132 "Ourwares/adctask.c" 1
+ 176 0028 BFF34F8F 		dsb
+ 177              	@ 0 "" 2
+ 178              	@ 132 "Ourwares/adctask.c" 1
+ 179 002c BFF36F8F 		isb
+ 180              	@ 0 "" 2
+ 181              		.thumb
+ 182              		.syntax unified
+ 183              	.L7:
+ 133:Ourwares/adctask.c **** 	return;
+ 134:Ourwares/adctask.c **** }
+ 184              		.loc 1 134 0 is_stmt 1
+ 185 0030 05B0     		add	sp, sp, #20
+ 186              	.LCFI3:
+ 187              		.cfi_def_cfa_offset 4
+ 188              		@ sp needed
+ 189 0032 5DF804FB 		ldr	pc, [sp], #4
+ 190              	.L11:
+ 191 0036 00BF     		.align	2
+ 192              	.L10:
+ 193 0038 00000000 		.word	adc1dmatskblk
+ 194 003c 04ED00E0 		.word	-536810236
+ 195              		.cfi_endproc
+ 196              	.LFE70:
+ 198              		.section	.text.HAL_ADC_ConvCpltCallback,"ax",%progbits
+ 199              		.align	2
+ 200              		.global	HAL_ADC_ConvCpltCallback
+ 201              		.thumb
+ 202              		.thumb_func
+ 204              	HAL_ADC_ConvCpltCallback:
+ 205              	.LFB71:
+ 135:Ourwares/adctask.c **** /* *************************************************************************
+ 136:Ourwares/adctask.c ****  * void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc);
+ 137:Ourwares/adctask.c ****  *	@brief	: Call back from stm32f4xx_hal_adc: End point of dma buffer
+ 138:Ourwares/adctask.c ****  * *************************************************************************/
+ 139:Ourwares/adctask.c **** void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+ 140:Ourwares/adctask.c **** {
+ 206              		.loc 1 140 0
+ 207              		.cfi_startproc
+ARM GAS  /tmp/ccJxd9fA.s 			page 7
+
+
+ 208              		@ args = 0, pretend = 0, frame = 8
+ 209              		@ frame_needed = 0, uses_anonymous_args = 0
+ 210              	.LVL20:
+ 211 0000 00B5     		push	{lr}
+ 212              	.LCFI4:
+ 213              		.cfi_def_cfa_offset 4
+ 214              		.cfi_offset 14, -4
+ 215 0002 85B0     		sub	sp, sp, #20
+ 216              	.LCFI5:
+ 217              		.cfi_def_cfa_offset 24
+ 141:Ourwares/adctask.c **** //	adcommon.dmact += 1; // Running count
+ 142:Ourwares/adctask.c **** 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+ 218              		.loc 1 142 0
+ 219 0004 0023     		movs	r3, #0
+ 220 0006 0393     		str	r3, [sp, #12]
+ 221              	.LVL21:
+ 143:Ourwares/adctask.c **** 	struct ADCDMATSKBLK* ptmp = &adc1dmatskblk[0];
+ 144:Ourwares/adctask.c **** 
+ 145:Ourwares/adctask.c **** 	/* Trigger Recieve Task to poll dma uarts */
+ 146:Ourwares/adctask.c **** 	if( ptmp->adctaskHandle == NULL) return; // Skip task has not been created
+ 222              		.loc 1 146 0
+ 223 0008 0B4B     		ldr	r3, .L15
+ 224 000a D869     		ldr	r0, [r3, #28]
+ 225              	.LVL22:
+ 226 000c 80B1     		cbz	r0, .L12
+ 147:Ourwares/adctask.c **** 	xTaskNotifyFromISR(ptmp->adctaskHandle, 
+ 227              		.loc 1 147 0
+ 228 000e D968     		ldr	r1, [r3, #12]
+ 229 0010 03AB     		add	r3, sp, #12
+ 230 0012 0093     		str	r3, [sp]
+ 231 0014 0023     		movs	r3, #0
+ 232 0016 0122     		movs	r2, #1
+ 233 0018 FFF7FEFF 		bl	xTaskGenericNotifyFromISR
+ 234              	.LVL23:
+ 148:Ourwares/adctask.c **** 		ptmp->notebit2,	/* 'or' bit assigned to buffer to notification value. */
+ 149:Ourwares/adctask.c **** 		eSetBits,      /* Set 'or' option */
+ 150:Ourwares/adctask.c **** 		&xHigherPriorityTaskWoken ); 
+ 151:Ourwares/adctask.c **** 
+ 152:Ourwares/adctask.c **** 	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+ 235              		.loc 1 152 0
+ 236 001c 039B     		ldr	r3, [sp, #12]
+ 237 001e 3BB1     		cbz	r3, .L12
+ 238              		.loc 1 152 0 is_stmt 0 discriminator 1
+ 239 0020 4FF08052 		mov	r2, #268435456
+ 240 0024 054B     		ldr	r3, .L15+4
+ 241 0026 1A60     		str	r2, [r3]
+ 242              		.syntax unified
+ 243              	@ 152 "Ourwares/adctask.c" 1
+ 244 0028 BFF34F8F 		dsb
+ 245              	@ 0 "" 2
+ 246              	@ 152 "Ourwares/adctask.c" 1
+ 247 002c BFF36F8F 		isb
+ 248              	@ 0 "" 2
+ 249              		.thumb
+ 250              		.syntax unified
+ 251              	.L12:
+ 153:Ourwares/adctask.c **** 	return;
+ARM GAS  /tmp/ccJxd9fA.s 			page 8
+
+
+ 154:Ourwares/adctask.c **** }
+ 252              		.loc 1 154 0 is_stmt 1
+ 253 0030 05B0     		add	sp, sp, #20
+ 254              	.LCFI6:
+ 255              		.cfi_def_cfa_offset 4
+ 256              		@ sp needed
+ 257 0032 5DF804FB 		ldr	pc, [sp], #4
+ 258              	.L16:
+ 259 0036 00BF     		.align	2
+ 260              	.L15:
+ 261 0038 00000000 		.word	adc1dmatskblk
+ 262 003c 04ED00E0 		.word	-536810236
+ 263              		.cfi_endproc
+ 264              	.LFE71:
+ 266              		.comm	adc1dmatskblk,64,4
+ 267              		.text
+ 268              	.Letext0:
+ 269              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 270              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 271              		.file 4 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 272              		.file 5 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 273              		.file 6 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 274              		.file 7 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 275              		.file 8 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 276              		.file 9 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 277              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_adc.h"
+ 278              		.file 11 "Ourwares/adctask.h"
+ 279              		.file 12 "Drivers/CMSIS/Include/core_cm3.h"
+ 280              		.file 13 "Ourwares/ADCTask.h"
+ 281              		.file 14 "Ourwares/morse.h"
+ 282              		.file 15 "Ourtasks/adcparams.h"
+ 283              		.file 16 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/malloc.h"
+ 284              		.file 17 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_adc_ex.h"
+ARM GAS  /tmp/ccJxd9fA.s 			page 9
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 adctask.c
+     /tmp/ccJxd9fA.s:20     .text.adctask_init:00000000 $t
+     /tmp/ccJxd9fA.s:25     .text.adctask_init:00000000 adctask_init
+     /tmp/ccJxd9fA.s:125    .text.adctask_init:00000074 $d
+                            *COM*:00000040 adc1dmatskblk
+     /tmp/ccJxd9fA.s:131    .text.HAL_ADC_ConvHalfCpltCallback:00000000 $t
+     /tmp/ccJxd9fA.s:136    .text.HAL_ADC_ConvHalfCpltCallback:00000000 HAL_ADC_ConvHalfCpltCallback
+     /tmp/ccJxd9fA.s:193    .text.HAL_ADC_ConvHalfCpltCallback:00000038 $d
+     /tmp/ccJxd9fA.s:199    .text.HAL_ADC_ConvCpltCallback:00000000 $t
+     /tmp/ccJxd9fA.s:204    .text.HAL_ADC_ConvCpltCallback:00000000 HAL_ADC_ConvCpltCallback
+     /tmp/ccJxd9fA.s:261    .text.HAL_ADC_ConvCpltCallback:00000038 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+morse_trap
+vPortEnterCritical
+adcparams_init
+calloc
+vPortExitCritical
+HAL_ADCEx_Calibration_Start
+HAL_ADC_Start_DMA
+ADCTaskHandle
+xTaskGenericNotifyFromISR

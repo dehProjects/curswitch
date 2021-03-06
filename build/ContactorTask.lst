@@ -1,0 +1,881 @@
+ARM GAS  /tmp/ccARgFpd.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"ContactorTask.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.StartContactorTask,"ax",%progbits
+  20              		.align	2
+  21              		.global	StartContactorTask
+  22              		.thumb
+  23              		.thumb_func
+  25              	StartContactorTask:
+  26              	.LFB73:
+  27              		.file 1 "Ourtasks/ContactorTask.c"
+   1:Ourtasks/ContactorTask.c **** /******************************************************************************
+   2:Ourtasks/ContactorTask.c **** * File Name          : ContactorTask.c
+   3:Ourtasks/ContactorTask.c **** * Date First Issued  : 06/18/2019
+   4:Ourtasks/ContactorTask.c **** * Description        : Contactor function w STM32CubeMX w FreeRTOS
+   5:Ourtasks/ContactorTask.c **** *******************************************************************************/
+   6:Ourtasks/ContactorTask.c **** 
+   7:Ourtasks/ContactorTask.c **** #include "FreeRTOS.h"
+   8:Ourtasks/ContactorTask.c **** #include "task.h"
+   9:Ourtasks/ContactorTask.c **** #include "cmsis_os.h"
+  10:Ourtasks/ContactorTask.c **** #include "malloc.h"
+  11:Ourtasks/ContactorTask.c **** #include "ADCTask.h"
+  12:Ourtasks/ContactorTask.c **** #include "adctask.h"
+  13:Ourtasks/ContactorTask.c **** #include "morse.h"
+  14:Ourtasks/ContactorTask.c **** #include "SerialTaskReceive.h"
+  15:Ourtasks/ContactorTask.c **** #include "ContactorTask.h"
+  16:Ourtasks/ContactorTask.c **** #include "contactor_idx_v_struct.h"
+  17:Ourtasks/ContactorTask.c **** #include "ContactorEvents.h"
+  18:Ourtasks/ContactorTask.c **** #include "ContactorStates.h"
+  19:Ourtasks/ContactorTask.c **** #include "ContactorUpdates.h"
+  20:Ourtasks/ContactorTask.c **** #include "contactor_func_init.h"
+  21:Ourtasks/ContactorTask.c **** 
+  22:Ourtasks/ContactorTask.c **** /* From 'main.c' */
+  23:Ourtasks/ContactorTask.c **** extern UART_HandleTypeDef huart3;
+  24:Ourtasks/ContactorTask.c **** 
+  25:Ourtasks/ContactorTask.c **** #define SWTIM1 500
+  26:Ourtasks/ContactorTask.c **** 
+  27:Ourtasks/ContactorTask.c **** osThreadId ContactorTaskHandle;
+  28:Ourtasks/ContactorTask.c **** 
+  29:Ourtasks/ContactorTask.c **** struct CONTACTORFUNCTION contactorfunction;
+  30:Ourtasks/ContactorTask.c **** 
+  31:Ourtasks/ContactorTask.c **** /* *************************************************************************
+ARM GAS  /tmp/ccARgFpd.s 			page 2
+
+
+  32:Ourtasks/ContactorTask.c ****  * void swtim1_callback(TimerHandle_t tm);
+  33:Ourtasks/ContactorTask.c ****  * @brief	: Software timer 1 timeout callback
+  34:Ourtasks/ContactorTask.c ****  * *************************************************************************/
+  35:Ourtasks/ContactorTask.c **** static void swtim1_callback(TimerHandle_t tm)
+  36:Ourtasks/ContactorTask.c **** {
+  37:Ourtasks/ContactorTask.c **** 	xTaskNotify(ContactorTaskHandle, CNCTBIT04, eSetBits);
+  38:Ourtasks/ContactorTask.c **** 	return;
+  39:Ourtasks/ContactorTask.c **** }
+  40:Ourtasks/ContactorTask.c **** /* *************************************************************************
+  41:Ourtasks/ContactorTask.c ****  * void swtim2_callback(TimerHandle_t tm);
+  42:Ourtasks/ContactorTask.c ****  * @brief	: Software timer 2 timeout callback
+  43:Ourtasks/ContactorTask.c ****  * *************************************************************************/
+  44:Ourtasks/ContactorTask.c **** static void swtim2_callback(TimerHandle_t tm)
+  45:Ourtasks/ContactorTask.c **** {
+  46:Ourtasks/ContactorTask.c **** 	xTaskNotify(ContactorTaskHandle, CNCTBIT05, eSetBits);
+  47:Ourtasks/ContactorTask.c **** 	return;
+  48:Ourtasks/ContactorTask.c **** }
+  49:Ourtasks/ContactorTask.c **** /* *************************************************************************
+  50:Ourtasks/ContactorTask.c ****  * void swtim3_callback(TimerHandle_t tm);
+  51:Ourtasks/ContactorTask.c ****  * @brief	: Software timer 3 timeout callback
+  52:Ourtasks/ContactorTask.c ****  * *************************************************************************/
+  53:Ourtasks/ContactorTask.c **** static void swtim3_callback(TimerHandle_t tm)
+  54:Ourtasks/ContactorTask.c **** {
+  55:Ourtasks/ContactorTask.c **** 	xTaskNotify(ContactorTaskHandle, CNCTBIT03, eSetBits);
+  56:Ourtasks/ContactorTask.c **** 	return;
+  57:Ourtasks/ContactorTask.c **** }
+  58:Ourtasks/ContactorTask.c **** /* *************************************************************************
+  59:Ourtasks/ContactorTask.c ****  * osThreadId xContactorTaskCreate(uint32_t taskpriority);
+  60:Ourtasks/ContactorTask.c ****  * @brief	: Create task; task handle created is global for all to enjoy!
+  61:Ourtasks/ContactorTask.c ****  * @param	: taskpriority = Task priority (just as it says!)
+  62:Ourtasks/ContactorTask.c ****  * @return	: ContactorTaskHandle
+  63:Ourtasks/ContactorTask.c ****  * *************************************************************************/
+  64:Ourtasks/ContactorTask.c **** osThreadId xContactorTaskCreate(uint32_t taskpriority)
+  65:Ourtasks/ContactorTask.c **** {
+  66:Ourtasks/ContactorTask.c ****  	osThreadDef(ContactorTask, StartContactorTask, osPriorityNormal, 0, 128);
+  67:Ourtasks/ContactorTask.c **** 	ContactorTaskHandle = osThreadCreate(osThread(ContactorTask), NULL);
+  68:Ourtasks/ContactorTask.c **** 	vTaskPrioritySet( ContactorTaskHandle, taskpriority );
+  69:Ourtasks/ContactorTask.c **** 	return ContactorTaskHandle;
+  70:Ourtasks/ContactorTask.c **** }
+  71:Ourtasks/ContactorTask.c **** /* *************************************************************************
+  72:Ourtasks/ContactorTask.c ****  * void StartContactorTask(void const * argument);
+  73:Ourtasks/ContactorTask.c ****  *	@brief	: Task startup
+  74:Ourtasks/ContactorTask.c ****  * *************************************************************************/
+  75:Ourtasks/ContactorTask.c **** void StartContactorTask(void const * argument)
+  76:Ourtasks/ContactorTask.c **** {
+  28              		.loc 1 76 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 8
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              	.LVL0:
+  33 0000 10B5     		push	{r4, lr}
+  34              	.LCFI0:
+  35              		.cfi_def_cfa_offset 8
+  36              		.cfi_offset 4, -8
+  37              		.cfi_offset 14, -4
+  38 0002 86B0     		sub	sp, sp, #24
+  39              	.LCFI1:
+ARM GAS  /tmp/ccARgFpd.s 			page 3
+
+
+  40              		.cfi_def_cfa_offset 32
+  41              	.LVL1:
+  77:Ourtasks/ContactorTask.c **** 	/* Convenience pointer. */
+  78:Ourtasks/ContactorTask.c **** 	struct CONTACTORFUNCTION* pcf = &contactorfunction;
+  79:Ourtasks/ContactorTask.c **** 
+  80:Ourtasks/ContactorTask.c **** 	/* A notification copies the internal notification word to this. */
+  81:Ourtasks/ContactorTask.c **** 	uint32_t noteval = 0;    // Receives notification word upon an API notify
+  42              		.loc 1 81 0
+  43 0004 0021     		movs	r1, #0
+  44 0006 06AB     		add	r3, sp, #24
+  45 0008 43F8041D 		str	r1, [r3, #-4]!
+  46              	.LVL2:
+  82:Ourtasks/ContactorTask.c **** 	uint32_t noteuse = 0xffffffff;
+  83:Ourtasks/ContactorTask.c **** 
+  84:Ourtasks/ContactorTask.c **** 	/* Setup serial receive for uart (HV sensing) */
+  85:Ourtasks/ContactorTask.c **** 	/* Get buffer control block for incoming uart lines. */
+  86:Ourtasks/ContactorTask.c **** 	// 8 line buffers of 16 chars, no dma buff, char-by-char line mode
+  87:Ourtasks/ContactorTask.c **** 	pcf->prbcb3  = xSerialTaskRxAdduart(&huart3,0,CNCTBIT01,&noteval,8,16,0,0);
+  47              		.loc 1 87 0
+  48 000c 0391     		str	r1, [sp, #12]
+  49 000e 0291     		str	r1, [sp, #8]
+  50 0010 1022     		movs	r2, #16
+  51 0012 0192     		str	r2, [sp, #4]
+  52 0014 0822     		movs	r2, #8
+  53 0016 0092     		str	r2, [sp]
+  54 0018 0222     		movs	r2, #2
+  55 001a 6548     		ldr	r0, .L28
+  56              	.LVL3:
+  57 001c FFF7FEFF 		bl	xSerialTaskRxAdduart
+  58              	.LVL4:
+  59 0020 644B     		ldr	r3, .L28+4
+  60 0022 C3F85801 		str	r0, [r3, #344]
+  88:Ourtasks/ContactorTask.c **** 	if (pcf->prbcb3 == NULL) morse_trap(47);
+  61              		.loc 1 88 0
+  62 0026 10B9     		cbnz	r0, .L2
+  63              		.loc 1 88 0 is_stmt 0 discriminator 1
+  64 0028 2F20     		movs	r0, #47
+  65 002a FFF7FEFF 		bl	morse_trap
+  66              	.LVL5:
+  67              	.L2:
+  89:Ourtasks/ContactorTask.c **** 
+  90:Ourtasks/ContactorTask.c **** 	/* Init struct with working params */
+  91:Ourtasks/ContactorTask.c **** 	contactor_idx_v_struct_hardcode_params(&contactorfunction.lc);
+  68              		.loc 1 91 0 is_stmt 1
+  69 002e 614C     		ldr	r4, .L28+4
+  70 0030 2046     		mov	r0, r4
+  71 0032 FFF7FEFF 		bl	contactor_idx_v_struct_hardcode_params
+  72              	.LVL6:
+  92:Ourtasks/ContactorTask.c **** 
+  93:Ourtasks/ContactorTask.c **** 	/* Initialize working struc for ContactorTask. */
+  94:Ourtasks/ContactorTask.c **** 	extern struct ADCFUNCTION adc1;
+  95:Ourtasks/ContactorTask.c **** 	contactor_func_init_init(pcf, &adc1);
+  73              		.loc 1 95 0
+  74 0036 6049     		ldr	r1, .L28+8
+  75 0038 2046     		mov	r0, r4
+  76 003a FFF7FEFF 		bl	contactor_func_init_init
+  77              	.LVL7:
+ARM GAS  /tmp/ccARgFpd.s 			page 4
+
+
+  96:Ourtasks/ContactorTask.c **** 
+  97:Ourtasks/ContactorTask.c **** 	/* CAN hardware filter: restrict incoming to necessary CAN msgs. */
+  98:Ourtasks/ContactorTask.c **** 	contactor_func_init_canfilter(pcf);
+  78              		.loc 1 98 0
+  79 003e 2046     		mov	r0, r4
+  80 0040 FFF7FEFF 		bl	contactor_func_init_canfilter
+  81              	.LVL8:
+  99:Ourtasks/ContactorTask.c ****       
+ 100:Ourtasks/ContactorTask.c **** 	/* Create timer for keep-alive.  Auto-reload/periodic */
+ 101:Ourtasks/ContactorTask.c **** 	pcf->swtimer1 = xTimerCreate("swtim1",pcf->ka_k,pdTRUE,\
+  82              		.loc 1 101 0
+  83 0044 5D4B     		ldr	r3, .L28+12
+  84 0046 0093     		str	r3, [sp]
+  85 0048 0023     		movs	r3, #0
+  86 004a 0122     		movs	r2, #1
+  87 004c D4F81C11 		ldr	r1, [r4, #284]
+  88 0050 5B48     		ldr	r0, .L28+16
+  89 0052 FFF7FEFF 		bl	xTimerCreate
+  90              	.LVL9:
+  91 0056 C4F85C01 		str	r0, [r4, #348]
+ 102:Ourtasks/ContactorTask.c **** 		(void *) 0, swtim1_callback);
+ 103:Ourtasks/ContactorTask.c **** 	if (pcf->swtimer1 == NULL) {morse_trap(41);}
+  92              		.loc 1 103 0
+  93 005a 10B9     		cbnz	r0, .L3
+  94              		.loc 1 103 0 is_stmt 0 discriminator 1
+  95 005c 2920     		movs	r0, #41
+  96 005e FFF7FEFF 		bl	morse_trap
+  97              	.LVL10:
+  98              	.L3:
+ 104:Ourtasks/ContactorTask.c **** 
+ 105:Ourtasks/ContactorTask.c **** 	/* Create timer for other delays. One-shot */
+ 106:Ourtasks/ContactorTask.c **** 	pcf->swtimer2 = xTimerCreate("swtim2",10,pdFALSE,\
+  99              		.loc 1 106 0 is_stmt 1
+ 100 0062 584B     		ldr	r3, .L28+20
+ 101 0064 0093     		str	r3, [sp]
+ 102 0066 0023     		movs	r3, #0
+ 103 0068 1A46     		mov	r2, r3
+ 104 006a 0A21     		movs	r1, #10
+ 105 006c 5648     		ldr	r0, .L28+24
+ 106 006e FFF7FEFF 		bl	xTimerCreate
+ 107              	.LVL11:
+ 108 0072 504B     		ldr	r3, .L28+4
+ 109 0074 C3F86001 		str	r0, [r3, #352]
+ 107:Ourtasks/ContactorTask.c **** 		(void *) 0, &swtim2_callback);
+ 108:Ourtasks/ContactorTask.c **** 	if (pcf->swtimer2 == NULL) {morse_trap(42);}
+ 110              		.loc 1 108 0
+ 111 0078 10B9     		cbnz	r0, .L4
+ 112              		.loc 1 108 0 is_stmt 0 discriminator 1
+ 113 007a 2A20     		movs	r0, #42
+ 114 007c FFF7FEFF 		bl	morse_trap
+ 115              	.LVL12:
+ 116              	.L4:
+ 109:Ourtasks/ContactorTask.c **** 
+ 110:Ourtasks/ContactorTask.c **** 	/* Create timer uart RX keep-alive. One-shot */
+ 111:Ourtasks/ContactorTask.c **** 	pcf->swtimer3 = xTimerCreate("swtim3",30,pdFALSE,\
+ 117              		.loc 1 111 0 is_stmt 1
+ 118 0080 524B     		ldr	r3, .L28+28
+ARM GAS  /tmp/ccARgFpd.s 			page 5
+
+
+ 119 0082 0093     		str	r3, [sp]
+ 120 0084 0023     		movs	r3, #0
+ 121 0086 1A46     		mov	r2, r3
+ 122 0088 1E21     		movs	r1, #30
+ 123 008a 5148     		ldr	r0, .L28+32
+ 124 008c FFF7FEFF 		bl	xTimerCreate
+ 125              	.LVL13:
+ 126 0090 484B     		ldr	r3, .L28+4
+ 127 0092 C3F86401 		str	r0, [r3, #356]
+ 112:Ourtasks/ContactorTask.c **** 		(void *) 0, &swtim3_callback);
+ 113:Ourtasks/ContactorTask.c **** 	if (pcf->swtimer3 == NULL) {morse_trap(43);}
+ 128              		.loc 1 113 0
+ 129 0096 10B9     		cbnz	r0, .L5
+ 130              		.loc 1 113 0 is_stmt 0 discriminator 1
+ 131 0098 2B20     		movs	r0, #43
+ 132 009a FFF7FEFF 		bl	morse_trap
+ 133              	.LVL14:
+ 134              	.L5:
+ 114:Ourtasks/ContactorTask.c **** 
+ 115:Ourtasks/ContactorTask.c **** 	/* Start command/keep-alive timer */
+ 116:Ourtasks/ContactorTask.c **** 	BaseType_t bret = xTimerReset(pcf->swtimer1, 10);
+ 135              		.loc 1 116 0 is_stmt 1
+ 136 009e 454B     		ldr	r3, .L28+4
+ 137 00a0 D3F85C41 		ldr	r4, [r3, #348]
+ 138 00a4 FFF7FEFF 		bl	xTaskGetTickCount
+ 139              	.LVL15:
+ 140 00a8 0A23     		movs	r3, #10
+ 141 00aa 0093     		str	r3, [sp]
+ 142 00ac 0023     		movs	r3, #0
+ 143 00ae 0246     		mov	r2, r0
+ 144 00b0 0221     		movs	r1, #2
+ 145 00b2 2046     		mov	r0, r4
+ 146 00b4 FFF7FEFF 		bl	xTimerGenericCommand
+ 147              	.LVL16:
+ 117:Ourtasks/ContactorTask.c **** 	if (bret != pdPASS) {morse_trap(44);}
+ 148              		.loc 1 117 0
+ 149 00b8 0128     		cmp	r0, #1
+ 150 00ba 02D0     		beq	.L6
+ 151              		.loc 1 117 0 is_stmt 0 discriminator 1
+ 152 00bc 2C20     		movs	r0, #44
+ 153              	.LVL17:
+ 154 00be FFF7FEFF 		bl	morse_trap
+ 155              	.LVL18:
+ 156              	.L6:
+ 118:Ourtasks/ContactorTask.c **** 
+ 119:Ourtasks/ContactorTask.c **** 	/* Upon startup allow some sensor readings to settle. */
+ 120:Ourtasks/ContactorTask.c **** 	pcf->state = OTOSETTLING;
+ 157              		.loc 1 120 0 is_stmt 1
+ 158 00c2 3C4B     		ldr	r3, .L28+4
+ 159 00c4 0722     		movs	r2, #7
+ 160 00c6 83F84422 		strb	r2, [r3, #580]
+ 121:Ourtasks/ContactorTask.c **** 
+ 122:Ourtasks/ContactorTask.c **** if (pcf->evstat != 0) morse_trap(46); // Debugging check
+ 161              		.loc 1 122 0
+ 162 00ca D3F8EC30 		ldr	r3, [r3, #236]
+ 163 00ce 13B1     		cbz	r3, .L26
+ 164              		.loc 1 122 0 is_stmt 0 discriminator 1
+ARM GAS  /tmp/ccARgFpd.s 			page 6
+
+
+ 165 00d0 2E20     		movs	r0, #46
+ 166 00d2 FFF7FEFF 		bl	morse_trap
+ 167              	.LVL19:
+ 168              	.L26:
+ 123:Ourtasks/ContactorTask.c **** 
+ 124:Ourtasks/ContactorTask.c ****   /* Infinite loop */
+ 125:Ourtasks/ContactorTask.c ****   for(;;)
+ 126:Ourtasks/ContactorTask.c ****   {
+ 127:Ourtasks/ContactorTask.c **** 		/* Wait for notifications */
+ 128:Ourtasks/ContactorTask.c **** 		xTaskNotifyWait(0,0xffffffff, &noteval, portMAX_DELAY);
+ 169              		.loc 1 128 0 is_stmt 1
+ 170 00d6 4FF0FF33 		mov	r3, #-1
+ 171 00da 05AA     		add	r2, sp, #20
+ 172 00dc 1946     		mov	r1, r3
+ 173 00de 0020     		movs	r0, #0
+ 174 00e0 FFF7FEFF 		bl	xTaskNotifyWait
+ 175              	.LVL20:
+ 129:Ourtasks/ContactorTask.c **** //		noteused = 0;	// Accumulate bits in 'noteval' processed.
+ 130:Ourtasks/ContactorTask.c ****   /* ========= Events =============================== */
+ 131:Ourtasks/ContactorTask.c **** // NOTE: this could be made into a loop that shifts 'noteval' bits
+ 132:Ourtasks/ContactorTask.c **** // and calls from table of addresses.  This would have an advantage
+ 133:Ourtasks/ContactorTask.c **** // if the high rate bits are shifted out first since a test for
+ 134:Ourtasks/ContactorTask.c **** // no bits left could end the testing early.
+ 135:Ourtasks/ContactorTask.c **** 		// Check notification and deal with it if set.
+ 136:Ourtasks/ContactorTask.c **** 		noteuse = 0;
+ 137:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT00) != 0)
+ 176              		.loc 1 137 0
+ 177 00e4 059B     		ldr	r3, [sp, #20]
+ 178 00e6 13F0010F 		tst	r3, #1
+ 179 00ea 02D0     		beq	.L8
+ 138:Ourtasks/ContactorTask.c **** 		{ // ADC readings ready
+ 139:Ourtasks/ContactorTask.c **** 			ContactorEvents_00(pcf);
+ 180              		.loc 1 139 0
+ 181 00ec 3148     		ldr	r0, .L28+4
+ 182 00ee FFF7FEFF 		bl	ContactorEvents_00
+ 183              	.LVL21:
+ 184              	.L8:
+ 140:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT00;
+ 141:Ourtasks/ContactorTask.c **** 		}
+ 142:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT01) != 0)
+ 185              		.loc 1 142 0
+ 186 00f2 059B     		ldr	r3, [sp, #20]
+ 187 00f4 13F0020F 		tst	r3, #2
+ 188 00f8 02D0     		beq	.L9
+ 143:Ourtasks/ContactorTask.c **** 		{ // uart RX line ready
+ 144:Ourtasks/ContactorTask.c **** 			ContactorEvents_01(pcf);
+ 189              		.loc 1 144 0
+ 190 00fa 2E48     		ldr	r0, .L28+4
+ 191 00fc FFF7FEFF 		bl	ContactorEvents_01
+ 192              	.LVL22:
+ 193              	.L9:
+ 145:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT01;
+ 146:Ourtasks/ContactorTask.c **** 		}
+ 147:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT02) != 0)
+ 148:Ourtasks/ContactorTask.c **** 		{ // (spare)
+ 149:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT02;
+ 150:Ourtasks/ContactorTask.c **** 		}
+ARM GAS  /tmp/ccARgFpd.s 			page 7
+
+
+ 151:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT03) != 0)
+ 194              		.loc 1 151 0
+ 195 0100 059B     		ldr	r3, [sp, #20]
+ 196 0102 13F0080F 		tst	r3, #8
+ 197 0106 02D0     		beq	.L10
+ 152:Ourtasks/ContactorTask.c **** 		{ // TIMER3: uart RX keep alive timed out
+ 153:Ourtasks/ContactorTask.c **** 			ContactorEvents_03(pcf);			
+ 198              		.loc 1 153 0
+ 199 0108 2A48     		ldr	r0, .L28+4
+ 200 010a FFF7FEFF 		bl	ContactorEvents_03
+ 201              	.LVL23:
+ 202              	.L10:
+ 154:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT03;
+ 155:Ourtasks/ContactorTask.c **** 		}
+ 156:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT04) != 0)
+ 203              		.loc 1 156 0
+ 204 010e 059B     		ldr	r3, [sp, #20]
+ 205 0110 13F0100F 		tst	r3, #16
+ 206 0114 02D0     		beq	.L11
+ 157:Ourtasks/ContactorTask.c **** 		{ // TIMER1: Command Keep Alive time out (periodic)
+ 158:Ourtasks/ContactorTask.c **** 			ContactorEvents_04(pcf);
+ 207              		.loc 1 158 0
+ 208 0116 2748     		ldr	r0, .L28+4
+ 209 0118 FFF7FEFF 		bl	ContactorEvents_04
+ 210              	.LVL24:
+ 211              	.L11:
+ 159:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT04;
+ 160:Ourtasks/ContactorTask.c **** 		}
+ 161:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT05) != 0)
+ 212              		.loc 1 161 0
+ 213 011c 059B     		ldr	r3, [sp, #20]
+ 214 011e 13F0200F 		tst	r3, #32
+ 215 0122 02D0     		beq	.L12
+ 162:Ourtasks/ContactorTask.c **** 		{ // TIMER2: Multiple use Delay timed out
+ 163:Ourtasks/ContactorTask.c **** 			ContactorEvents_05(pcf);
+ 216              		.loc 1 163 0
+ 217 0124 2348     		ldr	r0, .L28+4
+ 218 0126 FFF7FEFF 		bl	ContactorEvents_05
+ 219              	.LVL25:
+ 220              	.L12:
+ 164:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT05;
+ 165:Ourtasks/ContactorTask.c **** 		}
+ 166:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT06) != 0) 
+ 221              		.loc 1 166 0
+ 222 012a 059B     		ldr	r3, [sp, #20]
+ 223 012c 13F0400F 		tst	r3, #64
+ 224 0130 02D0     		beq	.L13
+ 167:Ourtasks/ContactorTask.c **** 		{ // CAN: cid_cmd_i 
+ 168:Ourtasks/ContactorTask.c **** 			ContactorEvents_06(pcf);
+ 225              		.loc 1 168 0
+ 226 0132 2048     		ldr	r0, .L28+4
+ 227 0134 FFF7FEFF 		bl	ContactorEvents_06
+ 228              	.LVL26:
+ 229              	.L13:
+ 169:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT06;
+ 170:Ourtasks/ContactorTask.c **** 		}
+ 171:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT07) != 0) 
+ARM GAS  /tmp/ccARgFpd.s 			page 8
+
+
+ 230              		.loc 1 171 0
+ 231 0138 059B     		ldr	r3, [sp, #20]
+ 232 013a 13F0800F 		tst	r3, #128
+ 233 013e 02D0     		beq	.L14
+ 172:Ourtasks/ContactorTask.c **** 		{ // CAN: cid_keepalive_i received
+ 173:Ourtasks/ContactorTask.c **** 			ContactorEvents_07(pcf);
+ 234              		.loc 1 173 0
+ 235 0140 1C48     		ldr	r0, .L28+4
+ 236 0142 FFF7FEFF 		bl	ContactorEvents_07
+ 237              	.LVL27:
+ 238              	.L14:
+ 174:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT07;
+ 175:Ourtasks/ContactorTask.c **** 		}
+ 176:Ourtasks/ContactorTask.c **** 		if ((noteval & CNCTBIT08) != 0) 
+ 239              		.loc 1 176 0
+ 240 0146 059B     		ldr	r3, [sp, #20]
+ 241 0148 13F4807F 		tst	r3, #256
+ 242 014c 02D0     		beq	.L15
+ 177:Ourtasks/ContactorTask.c **** 		{ // CAN: cid_gps_sync 
+ 178:Ourtasks/ContactorTask.c **** 			ContactorEvents_08(pcf);
+ 243              		.loc 1 178 0
+ 244 014e 1948     		ldr	r0, .L28+4
+ 245 0150 FFF7FEFF 		bl	ContactorEvents_08
+ 246              	.LVL28:
+ 247              	.L15:
+ 179:Ourtasks/ContactorTask.c **** 			noteuse |= CNCTBIT08;
+ 180:Ourtasks/ContactorTask.c **** 		}
+ 181:Ourtasks/ContactorTask.c ****   /* ========= States =============================== */
+ 182:Ourtasks/ContactorTask.c **** 
+ 183:Ourtasks/ContactorTask.c **** 		switch (pcf->state)
+ 248              		.loc 1 183 0
+ 249 0154 174B     		ldr	r3, .L28+4
+ 250 0156 93F84432 		ldrb	r3, [r3, #580]	@ zero_extendqisi2
+ 251 015a 072B     		cmp	r3, #7
+ 252 015c 24D8     		bhi	.L16
+ 253 015e DFE803F0 		tbb	[pc, r3]
+ 254              	.L18:
+ 255 0162 04       		.byte	(.L17-.L18)/2
+ 256 0163 08       		.byte	(.L19-.L18)/2
+ 257 0164 0C       		.byte	(.L20-.L18)/2
+ 258 0165 10       		.byte	(.L21-.L18)/2
+ 259 0166 14       		.byte	(.L22-.L18)/2
+ 260 0167 18       		.byte	(.L23-.L18)/2
+ 261 0168 1C       		.byte	(.L24-.L18)/2
+ 262 0169 20       		.byte	(.L25-.L18)/2
+ 263              		.p2align 1
+ 264              	.L17:
+ 184:Ourtasks/ContactorTask.c **** 		{
+ 185:Ourtasks/ContactorTask.c **** 		case DISCONNECTED:
+ 186:Ourtasks/ContactorTask.c **** 			ContactorStates_disconnected(pcf);
+ 265              		.loc 1 186 0
+ 266 016a 1248     		ldr	r0, .L28+4
+ 267 016c FFF7FEFF 		bl	ContactorStates_disconnected
+ 268              	.LVL29:
+ 187:Ourtasks/ContactorTask.c **** 			break;
+ 269              		.loc 1 187 0
+ 270 0170 1AE0     		b	.L16
+ARM GAS  /tmp/ccARgFpd.s 			page 9
+
+
+ 271              	.L19:
+ 188:Ourtasks/ContactorTask.c **** 		case CONNECTING:
+ 189:Ourtasks/ContactorTask.c **** 			ContactorStates_connecting(pcf);
+ 272              		.loc 1 189 0
+ 273 0172 1048     		ldr	r0, .L28+4
+ 274 0174 FFF7FEFF 		bl	ContactorStates_connecting
+ 275              	.LVL30:
+ 190:Ourtasks/ContactorTask.c **** 			break;
+ 276              		.loc 1 190 0
+ 277 0178 16E0     		b	.L16
+ 278              	.L20:
+ 191:Ourtasks/ContactorTask.c **** 		case CONNECTED:
+ 192:Ourtasks/ContactorTask.c **** 			ContactorStates_connected(pcf);
+ 279              		.loc 1 192 0
+ 280 017a 0E48     		ldr	r0, .L28+4
+ 281 017c FFF7FEFF 		bl	ContactorStates_connected
+ 282              	.LVL31:
+ 193:Ourtasks/ContactorTask.c **** 			break;
+ 283              		.loc 1 193 0
+ 284 0180 12E0     		b	.L16
+ 285              	.L21:
+ 194:Ourtasks/ContactorTask.c **** 		case FAULTING:
+ 195:Ourtasks/ContactorTask.c **** 			ContactorStates_faulting(pcf);
+ 286              		.loc 1 195 0
+ 287 0182 0C48     		ldr	r0, .L28+4
+ 288 0184 FFF7FEFF 		bl	ContactorStates_faulting
+ 289              	.LVL32:
+ 196:Ourtasks/ContactorTask.c **** 			break;
+ 290              		.loc 1 196 0
+ 291 0188 0EE0     		b	.L16
+ 292              	.L22:
+ 197:Ourtasks/ContactorTask.c **** 		case FAULTED:
+ 198:Ourtasks/ContactorTask.c **** 			ContactorStates_faulted(pcf);
+ 293              		.loc 1 198 0
+ 294 018a 0A48     		ldr	r0, .L28+4
+ 295 018c FFF7FEFF 		bl	ContactorStates_faulted
+ 296              	.LVL33:
+ 199:Ourtasks/ContactorTask.c **** 			break;
+ 297              		.loc 1 199 0
+ 298 0190 0AE0     		b	.L16
+ 299              	.L23:
+ 200:Ourtasks/ContactorTask.c **** 		case RESETTING:
+ 201:Ourtasks/ContactorTask.c **** 			ContactorStates_reset(pcf);
+ 300              		.loc 1 201 0
+ 301 0192 0848     		ldr	r0, .L28+4
+ 302 0194 FFF7FEFF 		bl	ContactorStates_reset
+ 303              	.LVL34:
+ 202:Ourtasks/ContactorTask.c **** 			break;
+ 304              		.loc 1 202 0
+ 305 0198 06E0     		b	.L16
+ 306              	.L24:
+ 203:Ourtasks/ContactorTask.c **** 		case DISCONNECTING:
+ 204:Ourtasks/ContactorTask.c **** 			ContactorStates_disconnecting(pcf);
+ 307              		.loc 1 204 0
+ 308 019a 0648     		ldr	r0, .L28+4
+ 309 019c FFF7FEFF 		bl	ContactorStates_disconnecting
+ 310              	.LVL35:
+ARM GAS  /tmp/ccARgFpd.s 			page 10
+
+
+ 205:Ourtasks/ContactorTask.c **** 			break;
+ 311              		.loc 1 205 0
+ 312 01a0 02E0     		b	.L16
+ 313              	.L25:
+ 206:Ourtasks/ContactorTask.c **** 		case OTOSETTLING:
+ 207:Ourtasks/ContactorTask.c **** 			ContactorStates_otosettling_init(pcf);
+ 314              		.loc 1 207 0
+ 315 01a2 0448     		ldr	r0, .L28+4
+ 316 01a4 FFF7FEFF 		bl	ContactorStates_otosettling_init
+ 317              	.LVL36:
+ 318              	.L16:
+ 208:Ourtasks/ContactorTask.c **** 			break;
+ 209:Ourtasks/ContactorTask.c **** 		}
+ 210:Ourtasks/ContactorTask.c ****   /* ========= Update outputs ======================= */
+ 211:Ourtasks/ContactorTask.c **** 		ContactorUpdates(pcf);
+ 319              		.loc 1 211 0
+ 320 01a8 0248     		ldr	r0, .L28+4
+ 321 01aa FFF7FEFF 		bl	ContactorUpdates
+ 322              	.LVL37:
+ 212:Ourtasks/ContactorTask.c ****   }
+ 323              		.loc 1 212 0
+ 324 01ae 92E7     		b	.L26
+ 325              	.L29:
+ 326              		.align	2
+ 327              	.L28:
+ 328 01b0 00000000 		.word	huart3
+ 329 01b4 00000000 		.word	contactorfunction
+ 330 01b8 00000000 		.word	adc1
+ 331 01bc 00000000 		.word	swtim1_callback
+ 332 01c0 00000000 		.word	.LC2
+ 333 01c4 00000000 		.word	swtim2_callback
+ 334 01c8 08000000 		.word	.LC3
+ 335 01cc 00000000 		.word	swtim3_callback
+ 336 01d0 10000000 		.word	.LC4
+ 337              		.cfi_endproc
+ 338              	.LFE73:
+ 340              		.section	.text.swtim3_callback,"ax",%progbits
+ 341              		.align	2
+ 342              		.thumb
+ 343              		.thumb_func
+ 345              	swtim3_callback:
+ 346              	.LFB71:
+  54:Ourtasks/ContactorTask.c **** 	xTaskNotify(ContactorTaskHandle, CNCTBIT03, eSetBits);
+ 347              		.loc 1 54 0
+ 348              		.cfi_startproc
+ 349              		@ args = 0, pretend = 0, frame = 0
+ 350              		@ frame_needed = 0, uses_anonymous_args = 0
+ 351              	.LVL38:
+ 352 0000 08B5     		push	{r3, lr}
+ 353              	.LCFI2:
+ 354              		.cfi_def_cfa_offset 8
+ 355              		.cfi_offset 3, -8
+ 356              		.cfi_offset 14, -4
+  55:Ourtasks/ContactorTask.c **** 	return;
+ 357              		.loc 1 55 0
+ 358 0002 0023     		movs	r3, #0
+ 359 0004 0122     		movs	r2, #1
+ARM GAS  /tmp/ccARgFpd.s 			page 11
+
+
+ 360 0006 0821     		movs	r1, #8
+ 361 0008 0248     		ldr	r0, .L32
+ 362              	.LVL39:
+ 363 000a 0068     		ldr	r0, [r0]
+ 364 000c FFF7FEFF 		bl	xTaskGenericNotify
+ 365              	.LVL40:
+ 366 0010 08BD     		pop	{r3, pc}
+ 367              	.L33:
+ 368 0012 00BF     		.align	2
+ 369              	.L32:
+ 370 0014 00000000 		.word	ContactorTaskHandle
+ 371              		.cfi_endproc
+ 372              	.LFE71:
+ 374              		.section	.text.swtim2_callback,"ax",%progbits
+ 375              		.align	2
+ 376              		.thumb
+ 377              		.thumb_func
+ 379              	swtim2_callback:
+ 380              	.LFB70:
+  45:Ourtasks/ContactorTask.c **** 	xTaskNotify(ContactorTaskHandle, CNCTBIT05, eSetBits);
+ 381              		.loc 1 45 0
+ 382              		.cfi_startproc
+ 383              		@ args = 0, pretend = 0, frame = 0
+ 384              		@ frame_needed = 0, uses_anonymous_args = 0
+ 385              	.LVL41:
+ 386 0000 08B5     		push	{r3, lr}
+ 387              	.LCFI3:
+ 388              		.cfi_def_cfa_offset 8
+ 389              		.cfi_offset 3, -8
+ 390              		.cfi_offset 14, -4
+  46:Ourtasks/ContactorTask.c **** 	return;
+ 391              		.loc 1 46 0
+ 392 0002 0023     		movs	r3, #0
+ 393 0004 0122     		movs	r2, #1
+ 394 0006 2021     		movs	r1, #32
+ 395 0008 0248     		ldr	r0, .L36
+ 396              	.LVL42:
+ 397 000a 0068     		ldr	r0, [r0]
+ 398 000c FFF7FEFF 		bl	xTaskGenericNotify
+ 399              	.LVL43:
+ 400 0010 08BD     		pop	{r3, pc}
+ 401              	.L37:
+ 402 0012 00BF     		.align	2
+ 403              	.L36:
+ 404 0014 00000000 		.word	ContactorTaskHandle
+ 405              		.cfi_endproc
+ 406              	.LFE70:
+ 408              		.section	.text.swtim1_callback,"ax",%progbits
+ 409              		.align	2
+ 410              		.thumb
+ 411              		.thumb_func
+ 413              	swtim1_callback:
+ 414              	.LFB69:
+  36:Ourtasks/ContactorTask.c **** 	xTaskNotify(ContactorTaskHandle, CNCTBIT04, eSetBits);
+ 415              		.loc 1 36 0
+ 416              		.cfi_startproc
+ 417              		@ args = 0, pretend = 0, frame = 0
+ARM GAS  /tmp/ccARgFpd.s 			page 12
+
+
+ 418              		@ frame_needed = 0, uses_anonymous_args = 0
+ 419              	.LVL44:
+ 420 0000 08B5     		push	{r3, lr}
+ 421              	.LCFI4:
+ 422              		.cfi_def_cfa_offset 8
+ 423              		.cfi_offset 3, -8
+ 424              		.cfi_offset 14, -4
+  37:Ourtasks/ContactorTask.c **** 	return;
+ 425              		.loc 1 37 0
+ 426 0002 0023     		movs	r3, #0
+ 427 0004 0122     		movs	r2, #1
+ 428 0006 1021     		movs	r1, #16
+ 429 0008 0248     		ldr	r0, .L40
+ 430              	.LVL45:
+ 431 000a 0068     		ldr	r0, [r0]
+ 432 000c FFF7FEFF 		bl	xTaskGenericNotify
+ 433              	.LVL46:
+ 434 0010 08BD     		pop	{r3, pc}
+ 435              	.L41:
+ 436 0012 00BF     		.align	2
+ 437              	.L40:
+ 438 0014 00000000 		.word	ContactorTaskHandle
+ 439              		.cfi_endproc
+ 440              	.LFE69:
+ 442              		.section	.text.xContactorTaskCreate,"ax",%progbits
+ 443              		.align	2
+ 444              		.global	xContactorTaskCreate
+ 445              		.thumb
+ 446              		.thumb_func
+ 448              	xContactorTaskCreate:
+ 449              	.LFB72:
+  65:Ourtasks/ContactorTask.c ****  	osThreadDef(ContactorTask, StartContactorTask, osPriorityNormal, 0, 128);
+ 450              		.loc 1 65 0
+ 451              		.cfi_startproc
+ 452              		@ args = 0, pretend = 0, frame = 32
+ 453              		@ frame_needed = 0, uses_anonymous_args = 0
+ 454              	.LVL47:
+ 455 0000 70B5     		push	{r4, r5, r6, lr}
+ 456              	.LCFI5:
+ 457              		.cfi_def_cfa_offset 16
+ 458              		.cfi_offset 4, -16
+ 459              		.cfi_offset 5, -12
+ 460              		.cfi_offset 6, -8
+ 461              		.cfi_offset 14, -4
+ 462 0002 88B0     		sub	sp, sp, #32
+ 463              	.LCFI6:
+ 464              		.cfi_def_cfa_offset 48
+ 465 0004 0646     		mov	r6, r0
+  66:Ourtasks/ContactorTask.c **** 	ContactorTaskHandle = osThreadCreate(osThread(ContactorTask), NULL);
+ 466              		.loc 1 66 0
+ 467 0006 01AC     		add	r4, sp, #4
+ 468 0008 094D     		ldr	r5, .L44
+ 469 000a 0FCD     		ldmia	r5!, {r0, r1, r2, r3}
+ 470              	.LVL48:
+ 471 000c 0FC4     		stmia	r4!, {r0, r1, r2, r3}
+ 472 000e 95E80700 		ldmia	r5, {r0, r1, r2}
+ 473 0012 84E80700 		stmia	r4, {r0, r1, r2}
+ARM GAS  /tmp/ccARgFpd.s 			page 13
+
+
+  67:Ourtasks/ContactorTask.c **** 	vTaskPrioritySet( ContactorTaskHandle, taskpriority );
+ 474              		.loc 1 67 0
+ 475 0016 0021     		movs	r1, #0
+ 476 0018 01A8     		add	r0, sp, #4
+ 477 001a FFF7FEFF 		bl	osThreadCreate
+ 478              	.LVL49:
+ 479 001e 054C     		ldr	r4, .L44+4
+ 480 0020 2060     		str	r0, [r4]
+  68:Ourtasks/ContactorTask.c **** 	return ContactorTaskHandle;
+ 481              		.loc 1 68 0
+ 482 0022 3146     		mov	r1, r6
+ 483 0024 FFF7FEFF 		bl	vTaskPrioritySet
+ 484              	.LVL50:
+  70:Ourtasks/ContactorTask.c **** /* *************************************************************************
+ 485              		.loc 1 70 0
+ 486 0028 2068     		ldr	r0, [r4]
+ 487 002a 08B0     		add	sp, sp, #32
+ 488              	.LCFI7:
+ 489              		.cfi_def_cfa_offset 16
+ 490              		@ sp needed
+ 491 002c 70BD     		pop	{r4, r5, r6, pc}
+ 492              	.LVL51:
+ 493              	.L45:
+ 494 002e 00BF     		.align	2
+ 495              	.L44:
+ 496 0030 00000000 		.word	.LANCHOR0
+ 497 0034 00000000 		.word	ContactorTaskHandle
+ 498              		.cfi_endproc
+ 499              	.LFE72:
+ 501              		.comm	contactorfunction,776,8
+ 502              		.comm	ContactorTaskHandle,4,4
+ 503              		.section	.rodata
+ 504              		.align	2
+ 505              		.set	.LANCHOR0,. + 0
+ 506              	.LC5:
+ 507 0000 18000000 		.word	.LC0
+ 508 0004 00000000 		.word	StartContactorTask
+ 509 0008 0000     		.short	0
+ 510 000a 0000     		.space	2
+ 511 000c 00000000 		.word	0
+ 512 0010 80000000 		.word	128
+ 513 0014 00000000 		.word	0
+ 514 0018 00000000 		.word	0
+ 515              		.section	.rodata.str1.4,"aMS",%progbits,1
+ 516              		.align	2
+ 517              	.LC2:
+ 518 0000 73777469 		.ascii	"swtim1\000"
+ 518      6D3100
+ 519 0007 00       		.space	1
+ 520              	.LC3:
+ 521 0008 73777469 		.ascii	"swtim2\000"
+ 521      6D3200
+ 522 000f 00       		.space	1
+ 523              	.LC4:
+ 524 0010 73777469 		.ascii	"swtim3\000"
+ 524      6D3300
+ 525 0017 00       		.space	1
+ARM GAS  /tmp/ccARgFpd.s 			page 14
+
+
+ 526              	.LC0:
+ 527 0018 436F6E74 		.ascii	"ContactorTask\000"
+ 527      6163746F 
+ 527      72546173 
+ 527      6B00
+ 528              		.text
+ 529              	.Letext0:
+ 530              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 531              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 532              		.file 4 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 533              		.file 5 "Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h"
+ 534              		.file 6 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 535              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/include/timers.h"
+ 536              		.file 8 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 537              		.file 9 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 538              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 539              		.file 11 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 540              		.file 12 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h"
+ 541              		.file 13 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h"
+ 542              		.file 14 "Ourwares/common_misc.h"
+ 543              		.file 15 "Ourwares/common_can.h"
+ 544              		.file 16 "Ourwares/SerialTaskReceive.h"
+ 545              		.file 17 "Ourtasks/iir_filter_lx.h"
+ 546              		.file 18 "Ourtasks/contactor_idx_v_struct.h"
+ 547              		.file 19 "Ourtasks/adc_idx_v_struct.h"
+ 548              		.file 20 "Ourwares/CanTask.h"
+ 549              		.file 21 "Ourtasks/ContactorTask.h"
+ 550              		.file 22 "Ourtasks/adcparams.h"
+ 551              		.file 23 "Ourtasks/cic_filter_l_N2_M3.h"
+ 552              		.file 24 "Drivers/CMSIS/Include/core_cm3.h"
+ 553              		.file 25 "Ourwares/morse.h"
+ 554              		.file 26 "Ourtasks/contactor_func_init.h"
+ 555              		.file 27 "Ourtasks/ContactorEvents.h"
+ 556              		.file 28 "Ourtasks/ContactorStates.h"
+ 557              		.file 29 "Ourtasks/ContactorUpdates.h"
+ARM GAS  /tmp/ccARgFpd.s 			page 15
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ContactorTask.c
+     /tmp/ccARgFpd.s:20     .text.StartContactorTask:00000000 $t
+     /tmp/ccARgFpd.s:25     .text.StartContactorTask:00000000 StartContactorTask
+     /tmp/ccARgFpd.s:255    .text.StartContactorTask:00000162 $d
+     /tmp/ccARgFpd.s:263    .text.StartContactorTask:0000016a $t
+     /tmp/ccARgFpd.s:328    .text.StartContactorTask:000001b0 $d
+                            *COM*:00000308 contactorfunction
+     /tmp/ccARgFpd.s:413    .text.swtim1_callback:00000000 swtim1_callback
+     /tmp/ccARgFpd.s:379    .text.swtim2_callback:00000000 swtim2_callback
+     /tmp/ccARgFpd.s:345    .text.swtim3_callback:00000000 swtim3_callback
+     /tmp/ccARgFpd.s:341    .text.swtim3_callback:00000000 $t
+     /tmp/ccARgFpd.s:370    .text.swtim3_callback:00000014 $d
+                            *COM*:00000004 ContactorTaskHandle
+     /tmp/ccARgFpd.s:375    .text.swtim2_callback:00000000 $t
+     /tmp/ccARgFpd.s:404    .text.swtim2_callback:00000014 $d
+     /tmp/ccARgFpd.s:409    .text.swtim1_callback:00000000 $t
+     /tmp/ccARgFpd.s:438    .text.swtim1_callback:00000014 $d
+     /tmp/ccARgFpd.s:443    .text.xContactorTaskCreate:00000000 $t
+     /tmp/ccARgFpd.s:448    .text.xContactorTaskCreate:00000000 xContactorTaskCreate
+     /tmp/ccARgFpd.s:496    .text.xContactorTaskCreate:00000030 $d
+     /tmp/ccARgFpd.s:504    .rodata:00000000 $d
+     /tmp/ccARgFpd.s:516    .rodata.str1.4:00000000 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+xSerialTaskRxAdduart
+morse_trap
+contactor_idx_v_struct_hardcode_params
+contactor_func_init_init
+contactor_func_init_canfilter
+xTimerCreate
+xTaskGetTickCount
+xTimerGenericCommand
+xTaskNotifyWait
+ContactorEvents_00
+ContactorEvents_01
+ContactorEvents_03
+ContactorEvents_04
+ContactorEvents_05
+ContactorEvents_06
+ContactorEvents_07
+ContactorEvents_08
+ContactorStates_disconnected
+ContactorStates_connecting
+ContactorStates_connected
+ContactorStates_faulting
+ContactorStates_faulted
+ContactorStates_reset
+ContactorStates_disconnecting
+ContactorStates_otosettling_init
+ContactorUpdates
+huart3
+adc1
+xTaskGenericNotify
+osThreadCreate
+vTaskPrioritySet
+ARM GAS  /tmp/ccARgFpd.s 			page 16
+
+

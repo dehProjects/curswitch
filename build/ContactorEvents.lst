@@ -1,0 +1,677 @@
+ARM GAS  /tmp/ccpK3U9q.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"ContactorEvents.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.ContactorEvents_00,"ax",%progbits
+  20              		.align	2
+  21              		.global	ContactorEvents_00
+  22              		.thumb
+  23              		.thumb_func
+  25              	ContactorEvents_00:
+  26              	.LFB69:
+  27              		.file 1 "Ourtasks/ContactorEvents.c"
+   1:Ourtasks/ContactorEvents.c **** /******************************************************************************
+   2:Ourtasks/ContactorEvents.c **** * File Name          : ContactorEvents.c
+   3:Ourtasks/ContactorEvents.c **** * Date First Issued  : 07/01/2019
+   4:Ourtasks/ContactorEvents.c **** * Description        : Events in Contactor function w STM32CubeMX w FreeRTOS
+   5:Ourtasks/ContactorEvents.c **** *******************************************************************************/
+   6:Ourtasks/ContactorEvents.c **** 
+   7:Ourtasks/ContactorEvents.c **** #include "FreeRTOS.h"
+   8:Ourtasks/ContactorEvents.c **** #include "task.h"
+   9:Ourtasks/ContactorEvents.c **** #include "cmsis_os.h"
+  10:Ourtasks/ContactorEvents.c **** #include "malloc.h"
+  11:Ourtasks/ContactorEvents.c **** #include "ADCTask.h"
+  12:Ourtasks/ContactorEvents.c **** #include "adctask.h"
+  13:Ourtasks/ContactorEvents.c **** 
+  14:Ourtasks/ContactorEvents.c **** #include "contactor_idx_v_struct.h"
+  15:Ourtasks/ContactorEvents.c **** #include "ContactorTask.h"
+  16:Ourtasks/ContactorEvents.c **** #include "morse.h"
+  17:Ourtasks/ContactorEvents.c **** 
+  18:Ourtasks/ContactorEvents.c **** #include "SerialTaskReceive.h"
+  19:Ourtasks/ContactorEvents.c **** #include "ContactorTask.h"
+  20:Ourtasks/ContactorEvents.c **** #include "can_iface.h"
+  21:Ourtasks/ContactorEvents.c **** #include "contactor_hv.h"
+  22:Ourtasks/ContactorEvents.c **** #include "contactor_cmd_msg.h"
+  23:Ourtasks/ContactorEvents.c **** #include "contactor_msgs.h"
+  24:Ourtasks/ContactorEvents.c **** #include "contactor_hv.h"
+  25:Ourtasks/ContactorEvents.c **** #include "MailboxTask.h"
+  26:Ourtasks/ContactorEvents.c **** 
+  27:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+  28:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_00(struct CONTACTORFUNCTION* pcf);
+  29:Ourtasks/ContactorEvents.c ****  * @brief	: ADC readings available
+  30:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+  31:Ourtasks/ContactorEvents.c **** void ContactorEvents_00(struct CONTACTORFUNCTION* pcf)
+ARM GAS  /tmp/ccpK3U9q.s 			page 2
+
+
+  32:Ourtasks/ContactorEvents.c **** {
+  28              		.loc 1 32 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              		@ link register save eliminated.
+  33              	.LVL0:
+  33:Ourtasks/ContactorEvents.c **** 	pcf->evstat |= CNCTEVADC; // Show new readings ready
+  34              		.loc 1 33 0
+  35 0000 D0F8EC30 		ldr	r3, [r0, #236]
+  36 0004 43F40073 		orr	r3, r3, #512
+  37 0008 C0F8EC30 		str	r3, [r0, #236]
+  38 000c 7047     		bx	lr
+  39              		.cfi_endproc
+  40              	.LFE69:
+  42 000e 00BF     		.section	.text.ContactorEvents_01,"ax",%progbits
+  43              		.align	2
+  44              		.global	ContactorEvents_01
+  45              		.thumb
+  46              		.thumb_func
+  48              	ContactorEvents_01:
+  49              	.LFB70:
+  34:Ourtasks/ContactorEvents.c **** 	return;
+  35:Ourtasks/ContactorEvents.c **** }
+  36:Ourtasks/ContactorEvents.c **** 
+  37:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+  38:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_01(struct CONTACTORFUNCTION* pcf);
+  39:Ourtasks/ContactorEvents.c ****  * @brief	: HV sensors usart RX line ready
+  40:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+  41:Ourtasks/ContactorEvents.c **** uint32_t dbgCE1;
+  42:Ourtasks/ContactorEvents.c **** void ContactorEvents_01(struct CONTACTORFUNCTION* pcf)
+  43:Ourtasks/ContactorEvents.c **** {
+  50              		.loc 1 43 0
+  51              		.cfi_startproc
+  52              		@ args = 0, pretend = 0, frame = 0
+  53              		@ frame_needed = 0, uses_anonymous_args = 0
+  54              	.LVL1:
+  55 0000 30B5     		push	{r4, r5, lr}
+  56              	.LCFI0:
+  57              		.cfi_def_cfa_offset 12
+  58              		.cfi_offset 4, -12
+  59              		.cfi_offset 5, -8
+  60              		.cfi_offset 14, -4
+  61 0002 83B0     		sub	sp, sp, #12
+  62              	.LCFI1:
+  63              		.cfi_def_cfa_offset 24
+  64 0004 0446     		mov	r4, r0
+  44:Ourtasks/ContactorEvents.c **** dbgCE1 += 1;
+  65              		.loc 1 44 0
+  66 0006 124A     		ldr	r2, .L4
+  67 0008 1368     		ldr	r3, [r2]
+  68 000a 0133     		adds	r3, r3, #1
+  69 000c 1360     		str	r3, [r2]
+  45:Ourtasks/ContactorEvents.c **** 	contactor_hv_uartline(pcf);  // Extract readings from received line
+  70              		.loc 1 45 0
+  71 000e FFF7FEFF 		bl	contactor_hv_uartline
+  72              	.LVL2:
+ARM GAS  /tmp/ccpK3U9q.s 			page 3
+
+
+  46:Ourtasks/ContactorEvents.c **** 	contactor_hv_calibrate(pcf); // Calibrate raw ADC ticks to scale int volts
+  73              		.loc 1 46 0
+  74 0012 2046     		mov	r0, r4
+  75 0014 FFF7FEFF 		bl	contactor_hv_calibrate
+  76              	.LVL3:
+  47:Ourtasks/ContactorEvents.c **** 	
+  48:Ourtasks/ContactorEvents.c **** 	xTimerReset(pcf->swtimer3,1); // Reset keep-alive timer
+  77              		.loc 1 48 0
+  78 0018 D4F86451 		ldr	r5, [r4, #356]
+  79 001c FFF7FEFF 		bl	xTaskGetTickCount
+  80              	.LVL4:
+  81 0020 0123     		movs	r3, #1
+  82 0022 0093     		str	r3, [sp]
+  83 0024 0023     		movs	r3, #0
+  84 0026 0246     		mov	r2, r0
+  85 0028 0221     		movs	r1, #2
+  86 002a 2846     		mov	r0, r5
+  87 002c FFF7FEFF 		bl	xTimerGenericCommand
+  88              	.LVL5:
+  49:Ourtasks/ContactorEvents.c **** 	pcf->evstat &= ~CNCTEVTIMER3;	// Clear timeout bit 
+  89              		.loc 1 49 0
+  90 0030 D4F8EC30 		ldr	r3, [r4, #236]
+  91 0034 23F00403 		bic	r3, r3, #4
+  50:Ourtasks/ContactorEvents.c **** 	pcf->evstat |= CNCTEVHV;      // Show new HV readings available
+  92              		.loc 1 50 0
+  93 0038 43F48073 		orr	r3, r3, #256
+  94 003c C4F8EC30 		str	r3, [r4, #236]
+  51:Ourtasks/ContactorEvents.c **** 	pcf->hvuartctr += 1;		// Running count of lines received
+  95              		.loc 1 51 0
+  96 0040 D4F81032 		ldr	r3, [r4, #528]
+  97 0044 0133     		adds	r3, r3, #1
+  98 0046 C4F81032 		str	r3, [r4, #528]
+  52:Ourtasks/ContactorEvents.c **** 	return;
+  53:Ourtasks/ContactorEvents.c **** }
+  99              		.loc 1 53 0
+ 100 004a 03B0     		add	sp, sp, #12
+ 101              	.LCFI2:
+ 102              		.cfi_def_cfa_offset 12
+ 103              		@ sp needed
+ 104 004c 30BD     		pop	{r4, r5, pc}
+ 105              	.LVL6:
+ 106              	.L5:
+ 107 004e 00BF     		.align	2
+ 108              	.L4:
+ 109 0050 00000000 		.word	dbgCE1
+ 110              		.cfi_endproc
+ 111              	.LFE70:
+ 113              		.section	.text.ContactorEvents_02,"ax",%progbits
+ 114              		.align	2
+ 115              		.global	ContactorEvents_02
+ 116              		.thumb
+ 117              		.thumb_func
+ 119              	ContactorEvents_02:
+ 120              	.LFB71:
+  54:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+  55:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_02(struct CONTACTORFUNCTION* pcf);
+  56:Ourtasks/ContactorEvents.c ****  * @brief	: (spare)
+ARM GAS  /tmp/ccpK3U9q.s 			page 4
+
+
+  57:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+  58:Ourtasks/ContactorEvents.c **** void ContactorEvents_02(struct CONTACTORFUNCTION* pcf)
+  59:Ourtasks/ContactorEvents.c **** {
+ 121              		.loc 1 59 0
+ 122              		.cfi_startproc
+ 123              		@ args = 0, pretend = 0, frame = 0
+ 124              		@ frame_needed = 0, uses_anonymous_args = 0
+ 125              		@ link register save eliminated.
+ 126              	.LVL7:
+ 127 0000 7047     		bx	lr
+ 128              		.cfi_endproc
+ 129              	.LFE71:
+ 131 0002 00BF     		.section	.text.ContactorEvents_03,"ax",%progbits
+ 132              		.align	2
+ 133              		.global	ContactorEvents_03
+ 134              		.thumb
+ 135              		.thumb_func
+ 137              	ContactorEvents_03:
+ 138              	.LFB72:
+  60:Ourtasks/ContactorEvents.c **** }
+  61:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+  62:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_03(struct CONTACTORFUNCTION* pcf);
+  63:Ourtasks/ContactorEvents.c ****  * @brief	: TIMER3: uart RX keep alive failed
+  64:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+  65:Ourtasks/ContactorEvents.c **** void ContactorEvents_03(struct CONTACTORFUNCTION* pcf)
+  66:Ourtasks/ContactorEvents.c **** {  // Readings failed to come in before timer timed out.
+ 139              		.loc 1 66 0
+ 140              		.cfi_startproc
+ 141              		@ args = 0, pretend = 0, frame = 0
+ 142              		@ frame_needed = 0, uses_anonymous_args = 0
+ 143              		@ link register save eliminated.
+ 144              	.LVL8:
+  67:Ourtasks/ContactorEvents.c **** 	pcf->evstat |= CNCTEVTIMER3;	// Set timeout bit 
+ 145              		.loc 1 67 0
+ 146 0000 D0F8EC30 		ldr	r3, [r0, #236]
+ 147 0004 43F00403 		orr	r3, r3, #4
+  68:Ourtasks/ContactorEvents.c **** 
+  69:Ourtasks/ContactorEvents.c **** 	pcf->evstat &= ~CNCTEVHV;      // Show new HV readings NOT available
+ 148              		.loc 1 69 0
+ 149 0008 23F48073 		bic	r3, r3, #256
+ 150 000c C0F8EC30 		str	r3, [r0, #236]
+  70:Ourtasks/ContactorEvents.c **** 
+  71:Ourtasks/ContactorEvents.c **** 	/* Show uart RX timer timed out, i.e. no readings. */
+  72:Ourtasks/ContactorEvents.c **** 	pcf->outstat |= CNCTOUTUART3;
+ 151              		.loc 1 72 0
+ 152 0010 D0F8F030 		ldr	r3, [r0, #240]
+ 153 0014 43F48073 		orr	r3, r3, #256
+ 154 0018 C0F8F030 		str	r3, [r0, #240]
+ 155 001c 7047     		bx	lr
+ 156              		.cfi_endproc
+ 157              	.LFE72:
+ 159 001e 00BF     		.section	.text.ContactorEvents_04,"ax",%progbits
+ 160              		.align	2
+ 161              		.global	ContactorEvents_04
+ 162              		.thumb
+ 163              		.thumb_func
+ 165              	ContactorEvents_04:
+ARM GAS  /tmp/ccpK3U9q.s 			page 5
+
+
+ 166              	.LFB73:
+  73:Ourtasks/ContactorEvents.c **** 	return;
+  74:Ourtasks/ContactorEvents.c **** }
+  75:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+  76:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_04(struct CONTACTORFUNCTION* pcf);
+  77:Ourtasks/ContactorEvents.c ****  * @brief	: TIMER1: Command Keep Alive failed (loss of command control)
+  78:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+  79:Ourtasks/ContactorEvents.c **** uint32_t dbgev04;
+  80:Ourtasks/ContactorEvents.c **** 
+  81:Ourtasks/ContactorEvents.c **** void ContactorEvents_04(struct CONTACTORFUNCTION* pcf)
+  82:Ourtasks/ContactorEvents.c **** {
+ 167              		.loc 1 82 0
+ 168              		.cfi_startproc
+ 169              		@ args = 0, pretend = 0, frame = 0
+ 170              		@ frame_needed = 0, uses_anonymous_args = 0
+ 171              	.LVL9:
+ 172 0000 10B5     		push	{r4, lr}
+ 173              	.LCFI3:
+ 174              		.cfi_def_cfa_offset 8
+ 175              		.cfi_offset 4, -8
+ 176              		.cfi_offset 14, -4
+ 177 0002 0446     		mov	r4, r0
+  83:Ourtasks/ContactorEvents.c **** dbgev04 += 1;
+ 178              		.loc 1 83 0
+ 179 0004 0B4A     		ldr	r2, .L10
+ 180 0006 1368     		ldr	r3, [r2]
+ 181 0008 0133     		adds	r3, r3, #1
+ 182 000a 1360     		str	r3, [r2]
+  84:Ourtasks/ContactorEvents.c **** 	pcf->evstat |= CNCTEVTIMER1;	// Set to show that TIMER1 timed out
+ 183              		.loc 1 84 0
+ 184 000c D0F8EC30 		ldr	r3, [r0, #236]
+ 185 0010 43F00103 		orr	r3, r3, #1
+ 186 0014 C0F8EC30 		str	r3, [r0, #236]
+  85:Ourtasks/ContactorEvents.c **** 
+  86:Ourtasks/ContactorEvents.c **** 	/* Update connect command and reset status */
+  87:Ourtasks/ContactorEvents.c **** // Let ContactorStates go to faulting state
+  88:Ourtasks/ContactorEvents.c **** //	pcf->evstat &= ~(CNCTEVCMDCN | CNCTEVCMDRS);
+  89:Ourtasks/ContactorEvents.c **** 
+  90:Ourtasks/ContactorEvents.c **** 	/* Send status msg as a status heartbeat. */
+  91:Ourtasks/ContactorEvents.c **** //	contactor_msg_ka(pcf);
+  92:Ourtasks/ContactorEvents.c **** 	pcf->outstat |=  CNCTOUT05KA;  // Output status bit: Show keep-alive
+ 187              		.loc 1 92 0
+ 188 0018 D0F8F030 		ldr	r3, [r0, #240]
+ 189 001c 43F02003 		orr	r3, r3, #32
+ 190 0020 C0F8F030 		str	r3, [r0, #240]
+  93:Ourtasks/ContactorEvents.c **** 
+  94:Ourtasks/ContactorEvents.c **** 	/* Send with CAN id for heartbeat. */
+  95:Ourtasks/ContactorEvents.c **** 	contactor_msg1(pcf, 0); // Send battery string voltage and current
+ 191              		.loc 1 95 0
+ 192 0024 0021     		movs	r1, #0
+ 193 0026 FFF7FEFF 		bl	contactor_msg1
+ 194              	.LVL10:
+  96:Ourtasks/ContactorEvents.c **** 	contactor_msg2(pcf, 0); // Send DMOC+ and DMOC- voltages
+ 195              		.loc 1 96 0
+ 196 002a 0021     		movs	r1, #0
+ 197 002c 2046     		mov	r0, r4
+ 198 002e FFF7FEFF 		bl	contactor_msg2
+ARM GAS  /tmp/ccpK3U9q.s 			page 6
+
+
+ 199              	.LVL11:
+ 200 0032 10BD     		pop	{r4, pc}
+ 201              	.LVL12:
+ 202              	.L11:
+ 203              		.align	2
+ 204              	.L10:
+ 205 0034 00000000 		.word	dbgev04
+ 206              		.cfi_endproc
+ 207              	.LFE73:
+ 209              		.section	.text.ContactorEvents_05,"ax",%progbits
+ 210              		.align	2
+ 211              		.global	ContactorEvents_05
+ 212              		.thumb
+ 213              		.thumb_func
+ 215              	ContactorEvents_05:
+ 216              	.LFB74:
+  97:Ourtasks/ContactorEvents.c **** 
+  98:Ourtasks/ContactorEvents.c **** 	return;
+  99:Ourtasks/ContactorEvents.c **** }
+ 100:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+ 101:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_05(struct CONTACTORFUNCTION* pcf);
+ 102:Ourtasks/ContactorEvents.c ****  * @brief	: TIMER2: delay ended
+ 103:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+ 104:Ourtasks/ContactorEvents.c **** void ContactorEvents_05(struct CONTACTORFUNCTION* pcf)
+ 105:Ourtasks/ContactorEvents.c **** {
+ 217              		.loc 1 105 0
+ 218              		.cfi_startproc
+ 219              		@ args = 0, pretend = 0, frame = 0
+ 220              		@ frame_needed = 0, uses_anonymous_args = 0
+ 221              		@ link register save eliminated.
+ 222              	.LVL13:
+ 106:Ourtasks/ContactorEvents.c **** 	pcf->evstat |= CNCTEVTIMER2;	// Set timeout bit 	
+ 223              		.loc 1 106 0
+ 224 0000 D0F8EC30 		ldr	r3, [r0, #236]
+ 225 0004 43F00203 		orr	r3, r3, #2
+ 226 0008 C0F8EC30 		str	r3, [r0, #236]
+ 227 000c 7047     		bx	lr
+ 228              		.cfi_endproc
+ 229              	.LFE74:
+ 231 000e 00BF     		.section	.text.ContactorEvents_06,"ax",%progbits
+ 232              		.align	2
+ 233              		.global	ContactorEvents_06
+ 234              		.thumb
+ 235              		.thumb_func
+ 237              	ContactorEvents_06:
+ 238              	.LFB75:
+ 107:Ourtasks/ContactorEvents.c **** 	return;
+ 108:Ourtasks/ContactorEvents.c **** }
+ 109:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+ 110:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_06(struct CONTACTORFUNCTION* pcf);
+ 111:Ourtasks/ContactorEvents.c ****  * @brief	: CAN: cid_cmd_i (function/diagnostic command/poll)
+ 112:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+ 113:Ourtasks/ContactorEvents.c **** void ContactorEvents_06(struct CONTACTORFUNCTION* pcf)
+ 114:Ourtasks/ContactorEvents.c **** {
+ 239              		.loc 1 114 0
+ 240              		.cfi_startproc
+ 241              		@ args = 0, pretend = 0, frame = 0
+ARM GAS  /tmp/ccpK3U9q.s 			page 7
+
+
+ 242              		@ frame_needed = 0, uses_anonymous_args = 0
+ 243              	.LVL14:
+ 244 0000 08B5     		push	{r3, lr}
+ 245              	.LCFI4:
+ 246              		.cfi_def_cfa_offset 8
+ 247              		.cfi_offset 3, -8
+ 248              		.cfi_offset 14, -4
+ 115:Ourtasks/ContactorEvents.c **** 	contactor_cmd_msg_i(pcf); // Build and send CAN msg with data requested
+ 249              		.loc 1 115 0
+ 250 0002 FFF7FEFF 		bl	contactor_cmd_msg_i
+ 251              	.LVL15:
+ 252 0006 08BD     		pop	{r3, pc}
+ 253              		.cfi_endproc
+ 254              	.LFE75:
+ 256              		.section	.text.ContactorEvents_07,"ax",%progbits
+ 257              		.align	2
+ 258              		.global	ContactorEvents_07
+ 259              		.thumb
+ 260              		.thumb_func
+ 262              	ContactorEvents_07:
+ 263              	.LFB76:
+ 116:Ourtasks/ContactorEvents.c **** 	return;
+ 117:Ourtasks/ContactorEvents.c **** }
+ 118:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+ 119:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_07(struct CONTACTORFUNCTION* pcf);
+ 120:Ourtasks/ContactorEvents.c ****  * @brief	: CAN: cid_keepalive_i 
+ 121:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+ 122:Ourtasks/ContactorEvents.c **** uint8_t dbgevcmd;
+ 123:Ourtasks/ContactorEvents.c **** 
+ 124:Ourtasks/ContactorEvents.c **** void ContactorEvents_07(struct CONTACTORFUNCTION* pcf)
+ 125:Ourtasks/ContactorEvents.c **** {
+ 264              		.loc 1 125 0
+ 265              		.cfi_startproc
+ 266              		@ args = 0, pretend = 0, frame = 0
+ 267              		@ frame_needed = 0, uses_anonymous_args = 0
+ 268              	.LVL16:
+ 269 0000 30B5     		push	{r4, r5, lr}
+ 270              	.LCFI5:
+ 271              		.cfi_def_cfa_offset 12
+ 272              		.cfi_offset 4, -12
+ 273              		.cfi_offset 5, -8
+ 274              		.cfi_offset 14, -4
+ 275 0002 83B0     		sub	sp, sp, #12
+ 276              	.LCFI6:
+ 277              		.cfi_def_cfa_offset 24
+ 278 0004 0446     		mov	r4, r0
+ 126:Ourtasks/ContactorEvents.c **** 	BaseType_t bret = xTimerReset(pcf->swtimer1, 10);
+ 279              		.loc 1 126 0
+ 280 0006 D0F85C51 		ldr	r5, [r0, #348]
+ 281 000a FFF7FEFF 		bl	xTaskGetTickCount
+ 282              	.LVL17:
+ 283 000e 0A23     		movs	r3, #10
+ 284 0010 0093     		str	r3, [sp]
+ 285 0012 0023     		movs	r3, #0
+ 286 0014 0246     		mov	r2, r0
+ 287 0016 0221     		movs	r1, #2
+ 288 0018 2846     		mov	r0, r5
+ARM GAS  /tmp/ccpK3U9q.s 			page 8
+
+
+ 289 001a FFF7FEFF 		bl	xTimerGenericCommand
+ 290              	.LVL18:
+ 127:Ourtasks/ContactorEvents.c **** 	if (bret != pdPASS) {morse_trap(44);}
+ 291              		.loc 1 127 0
+ 292 001e 0128     		cmp	r0, #1
+ 293 0020 02D0     		beq	.L16
+ 294              		.loc 1 127 0 is_stmt 0 discriminator 1
+ 295 0022 2C20     		movs	r0, #44
+ 296              	.LVL19:
+ 297 0024 FFF7FEFF 		bl	morse_trap
+ 298              	.LVL20:
+ 299              	.L16:
+ 128:Ourtasks/ContactorEvents.c **** 
+ 129:Ourtasks/ContactorEvents.c **** 	pcf->outstat |=  CNCTOUT05KA;  // Output status bit: Show keep-alive
+ 300              		.loc 1 129 0 is_stmt 1
+ 301 0028 D4F8F030 		ldr	r3, [r4, #240]
+ 302 002c 43F02003 		orr	r3, r3, #32
+ 303 0030 C4F8F030 		str	r3, [r4, #240]
+ 130:Ourtasks/ContactorEvents.c **** 	pcf->evstat  &= ~CNCTEVTIMER1; // Reset timer1 keep-alive timed-out bit
+ 304              		.loc 1 130 0
+ 305 0034 D4F8EC30 		ldr	r3, [r4, #236]
+ 306 0038 23F00103 		bic	r3, r3, #1
+ 307 003c C4F8EC30 		str	r3, [r4, #236]
+ 131:Ourtasks/ContactorEvents.c **** 
+ 132:Ourtasks/ContactorEvents.c **** 	/* Incoming command byte with command bits */
+ 133:Ourtasks/ContactorEvents.c **** 	uint8_t cmd = pcf->pmbx_cid_keepalive_i->ncan.can.cd.uc[0];
+ 308              		.loc 1 133 0
+ 309 0040 D4F81822 		ldr	r2, [r4, #536]
+ 310 0044 127A     		ldrb	r2, [r2, #8]	@ zero_extendqisi2
+ 311              	.LVL21:
+ 134:Ourtasks/ContactorEvents.c **** dbgevcmd = cmd;
+ 312              		.loc 1 134 0
+ 313 0046 1049     		ldr	r1, .L22
+ 314 0048 0A70     		strb	r2, [r1]
+ 135:Ourtasks/ContactorEvents.c **** 
+ 136:Ourtasks/ContactorEvents.c **** 	/* Update connect request status bits */
+ 137:Ourtasks/ContactorEvents.c **** 	if ( (cmd & CMDCONNECT) != 0) // Command to connect
+ 315              		.loc 1 137 0
+ 316 004a 12F0800F 		tst	r2, #128
+ 317 004e 04D0     		beq	.L17
+ 138:Ourtasks/ContactorEvents.c **** 	{ // Here, request to connect
+ 139:Ourtasks/ContactorEvents.c **** 		pcf->evstat |= CNCTEVCMDCN;		
+ 318              		.loc 1 139 0
+ 319 0050 43F08003 		orr	r3, r3, #128
+ 320 0054 C4F8EC30 		str	r3, [r4, #236]
+ 321 0058 03E0     		b	.L18
+ 322              	.L17:
+ 140:Ourtasks/ContactorEvents.c **** 	}
+ 141:Ourtasks/ContactorEvents.c **** 	else
+ 142:Ourtasks/ContactorEvents.c **** 	{
+ 143:Ourtasks/ContactorEvents.c **** 		pcf->evstat &= ~CNCTEVCMDCN;		
+ 323              		.loc 1 143 0
+ 324 005a 23F08003 		bic	r3, r3, #128
+ 325 005e C4F8EC30 		str	r3, [r4, #236]
+ 326              	.L18:
+ 144:Ourtasks/ContactorEvents.c **** 	}
+ 145:Ourtasks/ContactorEvents.c **** 	/* Update reset status */
+ARM GAS  /tmp/ccpK3U9q.s 			page 9
+
+
+ 146:Ourtasks/ContactorEvents.c **** 	if ( (cmd & CMDRESET ) != 0) // Command to reset
+ 327              		.loc 1 146 0
+ 328 0062 12F0400F 		tst	r2, #64
+ 329 0066 06D0     		beq	.L19
+ 147:Ourtasks/ContactorEvents.c **** 	{ // Here, request to reset
+ 148:Ourtasks/ContactorEvents.c **** 		pcf->evstat |= CNCTEVCMDRS;		
+ 330              		.loc 1 148 0
+ 331 0068 D4F8EC30 		ldr	r3, [r4, #236]
+ 332 006c 43F04003 		orr	r3, r3, #64
+ 333 0070 C4F8EC30 		str	r3, [r4, #236]
+ 334 0074 05E0     		b	.L15
+ 335              	.L19:
+ 149:Ourtasks/ContactorEvents.c **** 	}
+ 150:Ourtasks/ContactorEvents.c **** 	else
+ 151:Ourtasks/ContactorEvents.c **** 	{
+ 152:Ourtasks/ContactorEvents.c **** 		pcf->evstat &= ~CNCTEVCMDRS;		
+ 336              		.loc 1 152 0
+ 337 0076 D4F8EC30 		ldr	r3, [r4, #236]
+ 338 007a 23F04003 		bic	r3, r3, #64
+ 339 007e C4F8EC30 		str	r3, [r4, #236]
+ 340              	.L15:
+ 153:Ourtasks/ContactorEvents.c **** 	}
+ 154:Ourtasks/ContactorEvents.c **** 	return;
+ 155:Ourtasks/ContactorEvents.c **** }	
+ 341              		.loc 1 155 0
+ 342 0082 03B0     		add	sp, sp, #12
+ 343              	.LCFI7:
+ 344              		.cfi_def_cfa_offset 12
+ 345              		@ sp needed
+ 346 0084 30BD     		pop	{r4, r5, pc}
+ 347              	.LVL22:
+ 348              	.L23:
+ 349 0086 00BF     		.align	2
+ 350              	.L22:
+ 351 0088 00000000 		.word	dbgevcmd
+ 352              		.cfi_endproc
+ 353              	.LFE76:
+ 355              		.section	.text.ContactorEvents_08,"ax",%progbits
+ 356              		.align	2
+ 357              		.global	ContactorEvents_08
+ 358              		.thumb
+ 359              		.thumb_func
+ 361              	ContactorEvents_08:
+ 362              	.LFB77:
+ 156:Ourtasks/ContactorEvents.c **** /* *************************************************************************
+ 157:Ourtasks/ContactorEvents.c ****  * void ContactorEvents_08(struct CONTACTORFUNCTION* pcf);
+ 158:Ourtasks/ContactorEvents.c ****  * @brief	: CAN: cid_gps_sync: send response CAN msgs
+ 159:Ourtasks/ContactorEvents.c ****  * *************************************************************************/
+ 160:Ourtasks/ContactorEvents.c **** uint32_t dbggpsflag;
+ 161:Ourtasks/ContactorEvents.c **** 
+ 162:Ourtasks/ContactorEvents.c **** void ContactorEvents_08(struct CONTACTORFUNCTION* pcf)
+ 163:Ourtasks/ContactorEvents.c **** {
+ 363              		.loc 1 163 0
+ 364              		.cfi_startproc
+ 365              		@ args = 0, pretend = 0, frame = 0
+ 366              		@ frame_needed = 0, uses_anonymous_args = 0
+ 367              	.LVL23:
+ARM GAS  /tmp/ccpK3U9q.s 			page 10
+
+
+ 368 0000 10B5     		push	{r4, lr}
+ 369              	.LCFI8:
+ 370              		.cfi_def_cfa_offset 8
+ 371              		.cfi_offset 4, -8
+ 372              		.cfi_offset 14, -4
+ 373 0002 0446     		mov	r4, r0
+ 164:Ourtasks/ContactorEvents.c **** 
+ 165:Ourtasks/ContactorEvents.c **** /* Testing: use incoming gps msg to time defaultTask loop. */
+ 166:Ourtasks/ContactorEvents.c **** struct CANRCVBUF* pcan = &pcf->pmbx_cid_gps_sync->ncan.can;
+ 374              		.loc 1 166 0
+ 375 0004 D0F81C32 		ldr	r3, [r0, #540]
+ 376              	.LVL24:
+ 167:Ourtasks/ContactorEvents.c **** if (pcan->id == 0x00400000)
+ 377              		.loc 1 167 0
+ 378 0008 1A68     		ldr	r2, [r3]
+ 379 000a B2F5800F 		cmp	r2, #4194304
+ 380 000e 05D1     		bne	.L25
+ 168:Ourtasks/ContactorEvents.c **** {
+ 169:Ourtasks/ContactorEvents.c **** 	if (pcan->cd.uc[0] == 0)
+ 381              		.loc 1 169 0
+ 382 0010 1B7A     		ldrb	r3, [r3, #8]	@ zero_extendqisi2
+ 383              	.LVL25:
+ 384 0012 1BB9     		cbnz	r3, .L25
+ 170:Ourtasks/ContactorEvents.c ****       dbggpsflag += 1;
+ 385              		.loc 1 170 0
+ 386 0014 064A     		ldr	r2, .L27
+ 387 0016 1368     		ldr	r3, [r2]
+ 388 0018 0133     		adds	r3, r3, #1
+ 389 001a 1360     		str	r3, [r2]
+ 390              	.L25:
+ 171:Ourtasks/ContactorEvents.c **** }
+ 172:Ourtasks/ContactorEvents.c **** 	/* Send with regular polled CAN ID */
+ 173:Ourtasks/ContactorEvents.c **** 	contactor_msg1(pcf, 1); // Send battery string voltage and current
+ 391              		.loc 1 173 0
+ 392 001c 0121     		movs	r1, #1
+ 393 001e 2046     		mov	r0, r4
+ 394              	.LVL26:
+ 395 0020 FFF7FEFF 		bl	contactor_msg1
+ 396              	.LVL27:
+ 174:Ourtasks/ContactorEvents.c **** 	contactor_msg2(pcf, 1); // Send DMOC+ and DMOC- voltages
+ 397              		.loc 1 174 0
+ 398 0024 0121     		movs	r1, #1
+ 399 0026 2046     		mov	r0, r4
+ 400 0028 FFF7FEFF 		bl	contactor_msg2
+ 401              	.LVL28:
+ 402 002c 10BD     		pop	{r4, pc}
+ 403              	.LVL29:
+ 404              	.L28:
+ 405 002e 00BF     		.align	2
+ 406              	.L27:
+ 407 0030 00000000 		.word	dbggpsflag
+ 408              		.cfi_endproc
+ 409              	.LFE77:
+ 411              		.comm	dbggpsflag,4,4
+ 412              		.comm	dbgevcmd,1,1
+ 413              		.comm	dbgev04,4,4
+ 414              		.comm	dbgCE1,4,4
+ARM GAS  /tmp/ccpK3U9q.s 			page 11
+
+
+ 415              		.text
+ 416              	.Letext0:
+ 417              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 418              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 419              		.file 4 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 420              		.file 5 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 421              		.file 6 "Middlewares/Third_Party/FreeRTOS/Source/include/timers.h"
+ 422              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 423              		.file 8 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 424              		.file 9 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h"
+ 425              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 426              		.file 11 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 427              		.file 12 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_can.h"
+ 428              		.file 13 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h"
+ 429              		.file 14 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h"
+ 430              		.file 15 "Ourwares/common_misc.h"
+ 431              		.file 16 "Ourwares/common_can.h"
+ 432              		.file 17 "Ourtasks/iir_filter_lx.h"
+ 433              		.file 18 "Ourtasks/contactor_idx_v_struct.h"
+ 434              		.file 19 "Ourtasks/adc_idx_v_struct.h"
+ 435              		.file 20 "Ourwares/CanTask.h"
+ 436              		.file 21 "Ourwares/can_iface.h"
+ 437              		.file 22 "Ourtasks/ContactorTask.h"
+ 438              		.file 23 "Ourtasks/adcparams.h"
+ 439              		.file 24 "Ourwares/SerialTaskReceive.h"
+ 440              		.file 25 "Ourwares/MailboxTask.h"
+ 441              		.file 26 "Ourtasks/cic_filter_l_N2_M3.h"
+ 442              		.file 27 "Drivers/CMSIS/Include/core_cm3.h"
+ 443              		.file 28 "Ourtasks/contactor_hv.h"
+ 444              		.file 29 "Ourtasks/contactor_msgs.h"
+ 445              		.file 30 "Ourtasks/contactor_cmd_msg.h"
+ 446              		.file 31 "Ourwares/morse.h"
+ARM GAS  /tmp/ccpK3U9q.s 			page 12
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ContactorEvents.c
+     /tmp/ccpK3U9q.s:20     .text.ContactorEvents_00:00000000 $t
+     /tmp/ccpK3U9q.s:25     .text.ContactorEvents_00:00000000 ContactorEvents_00
+     /tmp/ccpK3U9q.s:43     .text.ContactorEvents_01:00000000 $t
+     /tmp/ccpK3U9q.s:48     .text.ContactorEvents_01:00000000 ContactorEvents_01
+     /tmp/ccpK3U9q.s:109    .text.ContactorEvents_01:00000050 $d
+                            *COM*:00000004 dbgCE1
+     /tmp/ccpK3U9q.s:114    .text.ContactorEvents_02:00000000 $t
+     /tmp/ccpK3U9q.s:119    .text.ContactorEvents_02:00000000 ContactorEvents_02
+     /tmp/ccpK3U9q.s:132    .text.ContactorEvents_03:00000000 $t
+     /tmp/ccpK3U9q.s:137    .text.ContactorEvents_03:00000000 ContactorEvents_03
+     /tmp/ccpK3U9q.s:160    .text.ContactorEvents_04:00000000 $t
+     /tmp/ccpK3U9q.s:165    .text.ContactorEvents_04:00000000 ContactorEvents_04
+     /tmp/ccpK3U9q.s:205    .text.ContactorEvents_04:00000034 $d
+                            *COM*:00000004 dbgev04
+     /tmp/ccpK3U9q.s:210    .text.ContactorEvents_05:00000000 $t
+     /tmp/ccpK3U9q.s:215    .text.ContactorEvents_05:00000000 ContactorEvents_05
+     /tmp/ccpK3U9q.s:232    .text.ContactorEvents_06:00000000 $t
+     /tmp/ccpK3U9q.s:237    .text.ContactorEvents_06:00000000 ContactorEvents_06
+     /tmp/ccpK3U9q.s:257    .text.ContactorEvents_07:00000000 $t
+     /tmp/ccpK3U9q.s:262    .text.ContactorEvents_07:00000000 ContactorEvents_07
+     /tmp/ccpK3U9q.s:351    .text.ContactorEvents_07:00000088 $d
+                            *COM*:00000001 dbgevcmd
+     /tmp/ccpK3U9q.s:356    .text.ContactorEvents_08:00000000 $t
+     /tmp/ccpK3U9q.s:361    .text.ContactorEvents_08:00000000 ContactorEvents_08
+     /tmp/ccpK3U9q.s:407    .text.ContactorEvents_08:00000030 $d
+                            *COM*:00000004 dbggpsflag
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+contactor_hv_uartline
+contactor_hv_calibrate
+xTaskGetTickCount
+xTimerGenericCommand
+contactor_msg1
+contactor_msg2
+contactor_cmd_msg_i
+morse_trap

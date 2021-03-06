@@ -1,0 +1,54 @@
+notes.txt
+09/21/2019
+
+1.  The "rig" was put together for test & debugging, so some repackaging
+might be in order.
+
+2. Blue Pill high voltage module glued to platform
+
+Therefore, platform needs a spacer to sit flat.
+
+3. Tamura 100a included
+
+I had one with no immediate need. Calibration is based on this unit.
+
+4. Screws
+
+These are wood screws. They tend to crack the the top few layers of 
+the post when they are screwed in. One hears a slight crack when 
+they are first screwed in. At the time I had not found a source of 
+self-tapping plastic screws.
+
+5. Cabling ready to test
+
+The interconnections are in place. These could be replaced by 
+hard-wiring for a final package. Vias beside each RJ jack allow
+easy soldering.
+
+6. Aux contact feature not tested.
+
+If something in the sw does not work with the Aux contact
+feature the failure is to not connect. 
+
+The hw has pull-up resistors so open circuit should appear as a
+one bit in the sw. The hw should pull the line to gnd for closed
+contact. The sw has a provision for reversing the sense for the
+sw.
+
+7. DMOC enable
+
+The only test on this is that it pulls the line down for enable.
+This is done after the program is in the CONNECTED state, which
+has included a final contactor closure delay.
+
+8. Flashing programs
+
+I'm out of DiscoveryF4 boards, otherwise I would have included
+one. The .doc file has a description of the connections for
+using a DiscoveryF4 board.
+
+
+
+
+
+

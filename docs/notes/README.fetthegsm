@@ -1,0 +1,35 @@
+README.fethegsm
+08/10/2019
+NOTES: on two FETTHE boards for winch Contactor
+
+1. FET 100v 13A
+
+Digikey: IPD78CN10NGBUMA1CT-ND
+Datasheet:
+https://www.infineon.com/dgdl/Infineon-IPP80CN10N-DS-v01_91-en.pdf?fileId=db3a304412b407950112b42c2aaf468d
+
+2. Isolated FET driver: SI826
+
+Digikey: 336-5207-1-ND
+Datasheet:
+https://media.digikey.com/pdf/Data%20Sheets/Silicon%20Laboratories%20PDFs/Si826x_Rev2015.pdf
+
+3. Connections
+
+- FET hole drain -> contactor coil -
+- FET hole gnd   -> 12v supply gnd
+
++12v to JP-2 (single pin) to supply FET gate driver.
+
+4. R8 (LED3) 
+
+Layout had R8 going to Drive FET gnd and for isolation it needs to go to
+the BP Ard board gnd (pin 1 of the RJ jack).
+
+R8 - 3.4K (and still much brighter than necessary).
+
+Fix: Turned R8 sidewise and ran short wire to U25-1 (gnd on BP Ard board side).
+
+
+
+

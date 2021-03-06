@@ -1,0 +1,285 @@
+ARM GAS  /tmp/cc4Y9AfL.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"cic_computation.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.init,"ax",%progbits
+  20              		.align	2
+  21              		.thumb
+  22              		.thumb_func
+  24              	init:
+  25              	.LFB69:
+  26              		.file 1 "Ourtasks/cic_computation.c"
+   1:Ourtasks/cic_computation.c **** /******************************************************************************
+   2:Ourtasks/cic_computation.c **** * File Name          : cic_computation.c
+   3:Ourtasks/cic_computation.c **** * Date First Issued  : 07/17/2019
+   4:Ourtasks/cic_computation.c **** * Board              : --
+   5:Ourtasks/cic_computation.c **** * Description        : CIC N2 M3 filtering
+   6:Ourtasks/cic_computation.c **** *******************************************************************************/
+   7:Ourtasks/cic_computation.c **** 
+   8:Ourtasks/cic_computation.c **** #include "cic_computation.h"
+   9:Ourtasks/cic_computation.c **** #include "cic_filter_l_N2_M3.h"
+  10:Ourtasks/cic_computation.c **** #include "adcparams.h"
+  11:Ourtasks/cic_computation.c **** 
+  12:Ourtasks/cic_computation.c **** #define DECIMATION 32
+  13:Ourtasks/cic_computation.c **** #define DISCARD  2
+  14:Ourtasks/cic_computation.c **** 
+  15:Ourtasks/cic_computation.c **** /******************************************************************************
+  16:Ourtasks/cic_computation.c ****  * static void init(struct CICLN2M3 *p);
+  17:Ourtasks/cic_computation.c ****  * @brief 	: Initialize CIC struct
+  18:Ourtasks/cic_computation.c ****  * @param	: p = pointer to CIC struct 
+  19:Ourtasks/cic_computation.c **** *******************************************************************************/
+  20:Ourtasks/cic_computation.c **** /*
+  21:Ourtasks/cic_computation.c **** struct CICLN2M3
+  22:Ourtasks/cic_computation.c **** {
+  23:Ourtasks/cic_computation.c **** 	unsigned short	usDecimateNum;	// Downsampling number
+  24:Ourtasks/cic_computation.c **** 	unsigned short	usDiscard;	// Initial discard count
+  25:Ourtasks/cic_computation.c **** 	int		nIn;		// New reading to be filtered
+  26:Ourtasks/cic_computation.c **** 	long 		lIntegral[3];	// Three stages of Z^(-1) integrators
+  27:Ourtasks/cic_computation.c **** 	long		lDiff[3][2];	// Three stages of Z^(-2) delay storage
+  28:Ourtasks/cic_computation.c **** 	long		lout;		// Filtered/decimated data output
+  29:Ourtasks/cic_computation.c **** 	unsigned short	usDecimateCt;	// Downsampling counter
+  30:Ourtasks/cic_computation.c **** 	unsigned short	usFlag;		// Filtered/decimated data ready counter
+  31:Ourtasks/cic_computation.c **** };
+  32:Ourtasks/cic_computation.c **** */
+ARM GAS  /tmp/cc4Y9AfL.s 			page 2
+
+
+  33:Ourtasks/cic_computation.c **** 
+  34:Ourtasks/cic_computation.c **** static void init(struct CICLN2M3 *p)
+  35:Ourtasks/cic_computation.c **** {
+  27              		.loc 1 35 0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		@ link register save eliminated.
+  32              	.LVL0:
+  36:Ourtasks/cic_computation.c **** 	int j;
+  37:Ourtasks/cic_computation.c **** 
+  38:Ourtasks/cic_computation.c **** 	/* Initialize the structs that hold the CIC filtering intermediate values. */
+  39:Ourtasks/cic_computation.c **** 		p->usDecimateNum = DECIMATION; // Decimation number
+  33              		.loc 1 39 0
+  34 0000 2023     		movs	r3, #32
+  35 0002 0380     		strh	r3, [r0]	@ movhi
+  40:Ourtasks/cic_computation.c **** 		p->usDecimateCt = 0;		// Decimation counter
+  36              		.loc 1 40 0
+  37 0004 0023     		movs	r3, #0
+  38 0006 0386     		strh	r3, [r0, #48]	@ movhi
+  41:Ourtasks/cic_computation.c **** 		p->usDiscard = DISCARD;	// Initial discard count
+  39              		.loc 1 41 0
+  40 0008 0222     		movs	r2, #2
+  41 000a 4280     		strh	r2, [r0, #2]	@ movhi
+  42:Ourtasks/cic_computation.c **** 		p->usFlag = 0;			// 1/2 buffer flag
+  42              		.loc 1 42 0
+  43 000c 4386     		strh	r3, [r0, #50]	@ movhi
+  44              	.LVL1:
+  43:Ourtasks/cic_computation.c **** 		for (j = 0; j < 3; j++)
+  45              		.loc 1 43 0
+  46 000e 0AE0     		b	.L2
+  47              	.LVL2:
+  48              	.L3:
+  44:Ourtasks/cic_computation.c **** 		{ // Very important that the integrators begin with zero.
+  45:Ourtasks/cic_computation.c **** 			p->lIntegral[j] = 0;
+  49              		.loc 1 45 0 discriminator 3
+  50 0010 9A1C     		adds	r2, r3, #2
+  51 0012 0021     		movs	r1, #0
+  52 0014 40F82210 		str	r1, [r0, r2, lsl #2]
+  46:Ourtasks/cic_computation.c **** 			p->lDiff[j][0] = 0;
+  53              		.loc 1 46 0 discriminator 3
+  54 0018 00EBC202 		add	r2, r0, r2, lsl #3
+  55 001c 5160     		str	r1, [r2, #4]
+  47:Ourtasks/cic_computation.c **** 			p->lDiff[j][1] = 0;
+  56              		.loc 1 47 0 discriminator 3
+  57 001e 00EBC302 		add	r2, r0, r3, lsl #3
+  58 0022 9161     		str	r1, [r2, #24]
+  43:Ourtasks/cic_computation.c **** 		{ // Very important that the integrators begin with zero.
+  59              		.loc 1 43 0 discriminator 3
+  60 0024 0133     		adds	r3, r3, #1
+  61              	.LVL3:
+  62              	.L2:
+  43:Ourtasks/cic_computation.c **** 		{ // Very important that the integrators begin with zero.
+  63              		.loc 1 43 0 is_stmt 0 discriminator 1
+  64 0026 022B     		cmp	r3, #2
+  65 0028 F2DD     		ble	.L3
+  48:Ourtasks/cic_computation.c **** 		}	
+ARM GAS  /tmp/cc4Y9AfL.s 			page 3
+
+
+  49:Ourtasks/cic_computation.c **** 	return;
+  50:Ourtasks/cic_computation.c **** }
+  66              		.loc 1 50 0 is_stmt 1
+  67 002a 7047     		bx	lr
+  68              		.cfi_endproc
+  69              	.LFE69:
+  71              		.section	.text.cic_computation_init,"ax",%progbits
+  72              		.align	2
+  73              		.global	cic_computation_init
+  74              		.thumb
+  75              		.thumb_func
+  77              	cic_computation_init:
+  78              	.LFB70:
+  51:Ourtasks/cic_computation.c **** 
+  52:Ourtasks/cic_computation.c **** /******************************************************************************
+  53:Ourtasks/cic_computation.c ****  * void cic_computation_init(struct ADCFUNCTION* p);
+  54:Ourtasks/cic_computation.c ****  * @brief 	: Initialize CIC struct for all ADC channels
+  55:Ourtasks/cic_computation.c ****  * @param	: p = pointer to ADC struct with "everything"
+  56:Ourtasks/cic_computation.c **** *******************************************************************************/
+  57:Ourtasks/cic_computation.c **** void cic_computation_init(struct ADCFUNCTION* p)
+  58:Ourtasks/cic_computation.c **** {
+  79              		.loc 1 58 0
+  80              		.cfi_startproc
+  81              		@ args = 0, pretend = 0, frame = 0
+  82              		@ frame_needed = 0, uses_anonymous_args = 0
+  83              	.LVL4:
+  84 0000 38B5     		push	{r3, r4, r5, lr}
+  85              	.LCFI0:
+  86              		.cfi_def_cfa_offset 16
+  87              		.cfi_offset 3, -16
+  88              		.cfi_offset 4, -12
+  89              		.cfi_offset 5, -8
+  90              		.cfi_offset 14, -4
+  91 0002 0546     		mov	r5, r0
+  92              	.LVL5:
+  59:Ourtasks/cic_computation.c **** 	int i;
+  60:Ourtasks/cic_computation.c **** 	for (i = 0; i < ADC1IDX_ADCSCANSIZE; i++)
+  93              		.loc 1 60 0
+  94 0004 0024     		movs	r4, #0
+  95 0006 08E0     		b	.L5
+  96              	.LVL6:
+  97              	.L6:
+  61:Ourtasks/cic_computation.c **** 	{
+  62:Ourtasks/cic_computation.c **** 		init(&p->chan[i].cic);
+  98              		.loc 1 62 0 discriminator 3
+  99 0008 04EB8403 		add	r3, r4, r4, lsl #2
+ 100 000c 1801     		lsls	r0, r3, #4
+ 101 000e 00F50C70 		add	r0, r0, #560
+ 102 0012 2844     		add	r0, r0, r5
+ 103 0014 FFF7FEFF 		bl	init
+ 104              	.LVL7:
+  60:Ourtasks/cic_computation.c **** 	{
+ 105              		.loc 1 60 0 discriminator 3
+ 106 0018 0134     		adds	r4, r4, #1
+ 107              	.LVL8:
+ 108              	.L5:
+  60:Ourtasks/cic_computation.c **** 	{
+ARM GAS  /tmp/cc4Y9AfL.s 			page 4
+
+
+ 109              		.loc 1 60 0 is_stmt 0 discriminator 1
+ 110 001a 052C     		cmp	r4, #5
+ 111 001c F4DD     		ble	.L6
+  63:Ourtasks/cic_computation.c **** 	}
+  64:Ourtasks/cic_computation.c **** 	return;
+  65:Ourtasks/cic_computation.c **** }
+ 112              		.loc 1 65 0 is_stmt 1
+ 113 001e 38BD     		pop	{r3, r4, r5, pc}
+ 114              		.cfi_endproc
+ 115              	.LFE70:
+ 117              		.section	.text.cic_computation_filtering,"ax",%progbits
+ 118              		.align	2
+ 119              		.global	cic_computation_filtering
+ 120              		.thumb
+ 121              		.thumb_func
+ 123              	cic_computation_filtering:
+ 124              	.LFB71:
+  66:Ourtasks/cic_computation.c **** 
+  67:Ourtasks/cic_computation.c **** /******************************************************************************
+  68:Ourtasks/cic_computation.c ****  * void cic_computation_filtering(struct ADCFUNCTION* padc);
+  69:Ourtasks/cic_computation.c ****  * @brief 	: Run the iir filtered sums through cic w decimation 
+  70:Ourtasks/cic_computation.c **** *******************************************************************************/
+  71:Ourtasks/cic_computation.c **** void cic_computation_filtering(struct ADCFUNCTION* padc)
+  72:Ourtasks/cic_computation.c **** {
+ 125              		.loc 1 72 0
+ 126              		.cfi_startproc
+ 127              		@ args = 0, pretend = 0, frame = 0
+ 128              		@ frame_needed = 0, uses_anonymous_args = 0
+ 129              	.LVL9:
+ 130 0000 10B5     		push	{r4, lr}
+ 131              	.LCFI1:
+ 132              		.cfi_def_cfa_offset 8
+ 133              		.cfi_offset 4, -8
+ 134              		.cfi_offset 14, -4
+ 135 0002 0446     		mov	r4, r0
+  73:Ourtasks/cic_computation.c **** 	cic_filter_l_N2_M3(&padc->chan[ADC1IDX_5VOLTSUPPLY ].cic, padc->v5.adcfil);
+ 136              		.loc 1 73 0
+ 137 0004 D0F8A011 		ldr	r1, [r0, #416]
+ 138 0008 00F50C70 		add	r0, r0, #560
+ 139              	.LVL10:
+ 140 000c FFF7FEFF 		bl	cic_filter_l_N2_M3
+ 141              	.LVL11:
+  74:Ourtasks/cic_computation.c **** 	cic_filter_l_N2_M3(&padc->chan[ADC1IDX_12VRAWSUPPLY].cic, padc->v12.adcfil);
+ 142              		.loc 1 74 0
+ 143 0010 D4F87011 		ldr	r1, [r4, #368]
+ 144 0014 04F54870 		add	r0, r4, #800
+ 145 0018 FFF7FEFF 		bl	cic_filter_l_N2_M3
+ 146              	.LVL12:
+  75:Ourtasks/cic_computation.c **** 	cic_filter_l_N2_M3(&padc->chan[ADC1IDX_CURRENTTOTAL].cic, padc->cur1.adcfil);
+ 147              		.loc 1 75 0
+ 148 001c D4F8D011 		ldr	r1, [r4, #464]
+ 149 0020 04F52070 		add	r0, r4, #640
+ 150 0024 FFF7FEFF 		bl	cic_filter_l_N2_M3
+ 151              	.LVL13:
+  76:Ourtasks/cic_computation.c **** 	cic_filter_l_N2_M3(&padc->chan[ADC1IDX_CURRENTMOTOR].cic, padc->cur2.adcfil);
+ 152              		.loc 1 76 0
+ 153 0028 D4F80812 		ldr	r1, [r4, #520]
+ARM GAS  /tmp/cc4Y9AfL.s 			page 5
+
+
+ 154 002c 04F53470 		add	r0, r4, #720
+ 155 0030 FFF7FEFF 		bl	cic_filter_l_N2_M3
+ 156              	.LVL14:
+  77:Ourtasks/cic_computation.c **** 	cic_filter_l_N2_M3(&padc->chan[ADC1IDX_INTERNALTEMP].cic, padc->intern.adcfilvref);
+ 157              		.loc 1 77 0
+ 158 0034 D4F80011 		ldr	r1, [r4, #256]
+ 159 0038 04F55C70 		add	r0, r4, #880
+ 160 003c FFF7FEFF 		bl	cic_filter_l_N2_M3
+ 161              	.LVL15:
+  78:Ourtasks/cic_computation.c **** 	cic_filter_l_N2_M3(&padc->chan[ADC1IDX_INTERNALVREF].cic, padc->intern.adcfilvref);
+ 162              		.loc 1 78 0
+ 163 0040 D4F80011 		ldr	r1, [r4, #256]
+ 164 0044 04F57070 		add	r0, r4, #960
+ 165 0048 FFF7FEFF 		bl	cic_filter_l_N2_M3
+ 166              	.LVL16:
+ 167 004c 10BD     		pop	{r4, pc}
+ 168              		.cfi_endproc
+ 169              	.LFE71:
+ 171 004e 00BF     		.text
+ 172              	.Letext0:
+ 173              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 174              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 175              		.file 4 "Ourtasks/cic_filter_l_N2_M3.h"
+ 176              		.file 5 "Ourtasks/iir_filter_lx.h"
+ 177              		.file 6 "Ourtasks/adc_idx_v_struct.h"
+ 178              		.file 7 "Ourtasks/adcparams.h"
+ 179              		.file 8 "Drivers/CMSIS/Include/core_cm3.h"
+ARM GAS  /tmp/cc4Y9AfL.s 			page 6
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 cic_computation.c
+     /tmp/cc4Y9AfL.s:20     .text.init:00000000 $t
+     /tmp/cc4Y9AfL.s:24     .text.init:00000000 init
+     /tmp/cc4Y9AfL.s:72     .text.cic_computation_init:00000000 $t
+     /tmp/cc4Y9AfL.s:77     .text.cic_computation_init:00000000 cic_computation_init
+     /tmp/cc4Y9AfL.s:118    .text.cic_computation_filtering:00000000 $t
+     /tmp/cc4Y9AfL.s:123    .text.cic_computation_filtering:00000000 cic_computation_filtering
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+cic_filter_l_N2_M3

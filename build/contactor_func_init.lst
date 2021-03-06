@@ -1,0 +1,718 @@
+ARM GAS  /tmp/ccxW6knG.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"contactor_func_init.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.global	__aeabi_ui2d
+  20              		.global	__aeabi_ddiv
+  21              		.global	__aeabi_dmul
+  22              		.global	__aeabi_d2uiz
+  23              		.global	__aeabi_f2d
+  24              		.global	__aeabi_d2iz
+  25              		.global	__aeabi_dsub
+  26              		.section	.text.contactor_func_init_init,"ax",%progbits
+  27              		.align	2
+  28              		.global	contactor_func_init_init
+  29              		.thumb
+  30              		.thumb_func
+  32              	contactor_func_init_init:
+  33              	.LFB69:
+  34              		.file 1 "Ourtasks/contactor_func_init.c"
+   1:Ourtasks/contactor_func_init.c **** /******************************************************************************
+   2:Ourtasks/contactor_func_init.c **** * File Name          : contactor_func_init.c
+   3:Ourtasks/contactor_func_init.c **** * Date First Issued  : 07/14/2019
+   4:Ourtasks/contactor_func_init.c **** * Description        : hv uart conversion and recalibration
+   5:Ourtasks/contactor_func_init.c **** *******************************************************************************/
+   6:Ourtasks/contactor_func_init.c **** 
+   7:Ourtasks/contactor_func_init.c **** #include "contactor_func_init.h"
+   8:Ourtasks/contactor_func_init.c **** #include "FreeRTOS.h"
+   9:Ourtasks/contactor_func_init.c **** #include "cmsis_os.h"
+  10:Ourtasks/contactor_func_init.c **** #include "task.h"
+  11:Ourtasks/contactor_func_init.c **** #include "MailboxTask.h"
+  12:Ourtasks/contactor_func_init.c **** #include "CanTask.h"
+  13:Ourtasks/contactor_func_init.c **** #include "can_iface.h"
+  14:Ourtasks/contactor_func_init.c **** #include "can_iface.h"
+  15:Ourtasks/contactor_func_init.c **** #include "CanTask.h"
+  16:Ourtasks/contactor_func_init.c **** #include "ContactorTask.h"
+  17:Ourtasks/contactor_func_init.c **** #include "main.h"
+  18:Ourtasks/contactor_func_init.c **** #include "stm32f1xx_hal_tim.h"
+  19:Ourtasks/contactor_func_init.c **** #include "morse.h"
+  20:Ourtasks/contactor_func_init.c **** #include "canfilter_setup.h"
+  21:Ourtasks/contactor_func_init.c **** 
+  22:Ourtasks/contactor_func_init.c **** /* From 'main.c' */
+  23:Ourtasks/contactor_func_init.c **** extern struct CAN_CTLBLOCK* pctl0;	// Pointer to CAN1 control block
+  24:Ourtasks/contactor_func_init.c **** extern TIM_HandleTypeDef htim4;
+ARM GAS  /tmp/ccxW6knG.s 			page 2
+
+
+  25:Ourtasks/contactor_func_init.c **** extern CAN_HandleTypeDef hcan;
+  26:Ourtasks/contactor_func_init.c **** 
+  27:Ourtasks/contactor_func_init.c **** /* *************************************************************************
+  28:Ourtasks/contactor_func_init.c ****  * void contactor_func_init_init(struct CONTACTORFUNCTION* p, struct ADCFUNCTION* padc);
+  29:Ourtasks/contactor_func_init.c ****  *	@brief	: Initialize working struct for ContactorTask
+  30:Ourtasks/contactor_func_init.c ****  * @param	: p    = pointer to ContactorTask
+  31:Ourtasks/contactor_func_init.c ****  * @param	: padc = pointer to ADC working struct
+  32:Ourtasks/contactor_func_init.c ****  * *************************************************************************/
+  33:Ourtasks/contactor_func_init.c **** 
+  34:Ourtasks/contactor_func_init.c **** void contactor_func_init_init(struct CONTACTORFUNCTION* p, struct ADCFUNCTION* padc)
+  35:Ourtasks/contactor_func_init.c **** {
+  35              		.loc 1 35 0
+  36              		.cfi_startproc
+  37              		@ args = 0, pretend = 0, frame = 0
+  38              		@ frame_needed = 0, uses_anonymous_args = 0
+  39              	.LVL0:
+  40 0000 2DE9F047 		push	{r4, r5, r6, r7, r8, r9, r10, lr}
+  41              	.LCFI0:
+  42              		.cfi_def_cfa_offset 32
+  43              		.cfi_offset 4, -32
+  44              		.cfi_offset 5, -28
+  45              		.cfi_offset 6, -24
+  46              		.cfi_offset 7, -20
+  47              		.cfi_offset 8, -16
+  48              		.cfi_offset 9, -12
+  49              		.cfi_offset 10, -8
+  50              		.cfi_offset 14, -4
+  51 0004 82B0     		sub	sp, sp, #8
+  52              	.LCFI1:
+  53              		.cfi_def_cfa_offset 40
+  54 0006 8246     		mov	r10, r0
+  55 0008 8846     		mov	r8, r1
+  36:Ourtasks/contactor_func_init.c **** 	int i;
+  37:Ourtasks/contactor_func_init.c **** 
+  38:Ourtasks/contactor_func_init.c **** 	/* Pointer to ADC working parameters. */
+  39:Ourtasks/contactor_func_init.c **** 	p->padc = padc;
+  56              		.loc 1 39 0
+  57 000a C0F8E810 		str	r1, [r0, #232]
+  58              	.LVL1:
+  40:Ourtasks/contactor_func_init.c **** 
+  41:Ourtasks/contactor_func_init.c **** 	/* For each HV */
+  42:Ourtasks/contactor_func_init.c **** 	for (i = 0; i < NUMHV; i++)
+  59              		.loc 1 42 0
+  60 000e 0024     		movs	r4, #0
+  61 0010 28E0     		b	.L2
+  62              	.LVL2:
+  63              	.L3:
+  43:Ourtasks/contactor_func_init.c **** 	{
+  44:Ourtasks/contactor_func_init.c **** 		// Pointer to filter parameters
+  45:Ourtasks/contactor_func_init.c **** 		p->hv[i].iir.pprm = &p->lc.calhv[i].iir;
+  64              		.loc 1 45 0 discriminator 3
+  65 0012 6200     		lsls	r2, r4, #1
+  66 0014 1119     		adds	r1, r2, r4
+  67 0016 CB00     		lsls	r3, r1, #3
+  68 0018 6833     		adds	r3, r3, #104
+  69 001a 5344     		add	r3, r3, r10
+  70 001c E100     		lsls	r1, r4, #3
+ARM GAS  /tmp/ccxW6knG.s 			page 3
+
+
+  71 001e 091B     		subs	r1, r1, r4
+  72 0020 CD00     		lsls	r5, r1, #3
+  73 0022 5544     		add	r5, r5, r10
+  74 0024 C5F87831 		str	r3, [r5, #376]
+  46:Ourtasks/contactor_func_init.c **** 
+  47:Ourtasks/contactor_func_init.c **** 		// Calibration volts per adc ct
+  48:Ourtasks/contactor_func_init.c **** 		p->hv[i].dscale = p->lc.calhv[i].dvcal / (p->lc.calhv[i].adchv - p->lc.calhv[i].offset);
+  75              		.loc 1 48 0 discriminator 3
+  76 0028 2244     		add	r2, r2, r4
+  77 002a D300     		lsls	r3, r2, #3
+  78 002c 5344     		add	r3, r3, r10
+  79 002e D3E91C67 		ldrd	r6, [r3, #112]
+  80 0032 986F     		ldr	r0, [r3, #120]
+  81 0034 DB6F     		ldr	r3, [r3, #124]
+  82 0036 C01A     		subs	r0, r0, r3
+  83 0038 FFF7FEFF 		bl	__aeabi_ui2d
+  84              	.LVL3:
+  85 003c 0246     		mov	r2, r0
+  86 003e 0B46     		mov	r3, r1
+  87 0040 3046     		mov	r0, r6
+  88 0042 3946     		mov	r1, r7
+  89 0044 FFF7FEFF 		bl	__aeabi_ddiv
+  90              	.LVL4:
+  91 0048 05F5C073 		add	r3, r5, #384
+  92 004c C3E90001 		strd	r0, [r3]
+  49:Ourtasks/contactor_func_init.c **** 
+  50:Ourtasks/contactor_func_init.c **** 		// Calibration volts per adc ct scaled up for integers
+  51:Ourtasks/contactor_func_init.c **** 		p->hv[i].hvcal = ((double)HVSCALE * p->hv[i].dscale);
+  93              		.loc 1 51 0 discriminator 3
+  94 0050 0022     		movs	r2, #0
+  95 0052 4FF08243 		mov	r3, #1090519040
+  96 0056 FFF7FEFF 		bl	__aeabi_dmul
+  97              	.LVL5:
+  98 005a FFF7FEFF 		bl	__aeabi_d2uiz
+  99              	.LVL6:
+ 100 005e C5F89001 		str	r0, [r5, #400]
+  42:Ourtasks/contactor_func_init.c **** 	{
+ 101              		.loc 1 42 0 discriminator 3
+ 102 0062 0134     		adds	r4, r4, #1
+ 103              	.LVL7:
+ 104              	.L2:
+  42:Ourtasks/contactor_func_init.c **** 	{
+ 105              		.loc 1 42 0 is_stmt 0 discriminator 1
+ 106 0064 022C     		cmp	r4, #2
+ 107 0066 D4DD     		ble	.L3
+  52:Ourtasks/contactor_func_init.c **** 	}
+  53:Ourtasks/contactor_func_init.c **** 
+  54:Ourtasks/contactor_func_init.c **** 	/* Battery low voltage as scaled uint32_t. */
+  55:Ourtasks/contactor_func_init.c **** 	p->ibattlow = p->lc.fbattlow / p->hv[IDXHV1].dscale;
+ 108              		.loc 1 55 0 is_stmt 1
+ 109 0068 0AF5C073 		add	r3, r10, #384
+ 110 006c D3E90045 		ldrd	r4, [r3]
+ 111              	.LVL8:
+ 112 0070 DAF82400 		ldr	r0, [r10, #36]	@ float
+ 113 0074 FFF7FEFF 		bl	__aeabi_f2d
+ 114              	.LVL9:
+ 115 0078 2246     		mov	r2, r4
+ARM GAS  /tmp/ccxW6knG.s 			page 4
+
+
+ 116 007a 2B46     		mov	r3, r5
+ 117 007c FFF7FEFF 		bl	__aeabi_ddiv
+ 118              	.LVL10:
+ 119 0080 FFF7FEFF 		bl	__aeabi_d2uiz
+ 120              	.LVL11:
+ 121 0084 CAF80001 		str	r0, [r10, #256]
+  56:Ourtasks/contactor_func_init.c **** 
+  57:Ourtasks/contactor_func_init.c **** 	/* Battery string current above which disconnecting is prevented. */
+  58:Ourtasks/contactor_func_init.c **** 	p->icurrentdisconnect = ((p->lc.dcurrentdisconnect * (double)(1 << ADCSCALEbits)) / p->padc->cur1.
+ 122              		.loc 1 58 0
+ 123 0088 0022     		movs	r2, #0
+ 124 008a 9D4B     		ldr	r3, .L7+8
+ 125 008c DAE90A01 		ldrd	r0, [r10, #40]
+ 126 0090 FFF7FEFF 		bl	__aeabi_dmul
+ 127              	.LVL12:
+ 128 0094 08F5E478 		add	r8, r8, #456
+ 129              	.LVL13:
+ 130 0098 D8E90023 		ldrd	r2, [r8]
+ 131 009c FFF7FEFF 		bl	__aeabi_ddiv
+ 132              	.LVL14:
+ 133 00a0 FFF7FEFF 		bl	__aeabi_d2iz
+ 134              	.LVL15:
+ 135 00a4 CAF80401 		str	r0, [r10, #260]
+  59:Ourtasks/contactor_func_init.c **** 
+  60:Ourtasks/contactor_func_init.c **** 	/* Prep-charge end volts threshold */
+  61:Ourtasks/contactor_func_init.c **** 
+  62:Ourtasks/contactor_func_init.c **** 	// Two contactor mode uses HV3 (voltage across pre-chg resistor)
+  63:Ourtasks/contactor_func_init.c **** 	p->iprechgendv  = (p->lc.ddiffb4 / p->hv[IDXHV3].dscale);
+ 136              		.loc 1 63 0
+ 137 00a8 DAE90489 		ldrd	r8, [r10, #16]
+ 138              	.LVL16:
+ 139 00ac 0AF5F873 		add	r3, r10, #496
+ 140 00b0 D3E90023 		ldrd	r2, [r3]
+ 141 00b4 4046     		mov	r0, r8
+ 142 00b6 4946     		mov	r1, r9
+ 143 00b8 FFF7FEFF 		bl	__aeabi_ddiv
+ 144              	.LVL17:
+ 145 00bc FFF7FEFF 		bl	__aeabi_d2uiz
+ 146              	.LVL18:
+ 147 00c0 CAF80C01 		str	r0, [r10, #268]
+  64:Ourtasks/contactor_func_init.c **** 
+  65:Ourtasks/contactor_func_init.c **** 	// One contactor mode uses (HV1-HV2) (voltage across pre-chg resistor)
+  66:Ourtasks/contactor_func_init.c **** 	p->iprechgendvb = ((p->lc.ddiffb4 * (double)p->hv[IDXHV1].hvcal) / p->hv[IDXHV1].dscale);
+ 148              		.loc 1 66 0
+ 149 00c4 DAF89001 		ldr	r0, [r10, #400]
+ 150 00c8 FFF7FEFF 		bl	__aeabi_ui2d
+ 151              	.LVL19:
+ 152 00cc 0646     		mov	r6, r0
+ 153 00ce 0F46     		mov	r7, r1
+ 154 00d0 0246     		mov	r2, r0
+ 155 00d2 0B46     		mov	r3, r1
+ 156 00d4 4046     		mov	r0, r8
+ 157 00d6 4946     		mov	r1, r9
+ 158 00d8 FFF7FEFF 		bl	__aeabi_dmul
+ 159              	.LVL20:
+ 160 00dc 2246     		mov	r2, r4
+ 161 00de 2B46     		mov	r3, r5
+ARM GAS  /tmp/ccxW6knG.s 			page 5
+
+
+ 162 00e0 FFF7FEFF 		bl	__aeabi_ddiv
+ 163              	.LVL21:
+ 164 00e4 FFF7FEFF 		bl	__aeabi_d2uiz
+ 165              	.LVL22:
+ 166 00e8 CAF81001 		str	r0, [r10, #272]
+  67:Ourtasks/contactor_func_init.c **** 
+  68:Ourtasks/contactor_func_init.c **** 	/* Voltage across contactor #1 after expected closure. */
+  69:Ourtasks/contactor_func_init.c **** 	p->idiffafter   = ((p->lc.fdiffafter * (double)p->hv[IDXHV1].hvcal) / p->hv[IDXHV1].dscale);
+ 167              		.loc 1 69 0
+ 168 00ec DAF84800 		ldr	r0, [r10, #72]	@ float
+ 169 00f0 FFF7FEFF 		bl	__aeabi_f2d
+ 170              	.LVL23:
+ 171 00f4 3246     		mov	r2, r6
+ 172 00f6 3B46     		mov	r3, r7
+ 173 00f8 FFF7FEFF 		bl	__aeabi_dmul
+ 174              	.LVL24:
+ 175 00fc 2246     		mov	r2, r4
+ 176 00fe 2B46     		mov	r3, r5
+ 177 0100 FFF7FEFF 		bl	__aeabi_ddiv
+ 178              	.LVL25:
+ 179 0104 FFF7FEFF 		bl	__aeabi_d2uiz
+ 180              	.LVL26:
+ 181 0108 CAF81801 		str	r0, [r10, #280]
+  70:Ourtasks/contactor_func_init.c **** 
+  71:Ourtasks/contactor_func_init.c **** 	/* Convert ms to timer ticks. */
+  72:Ourtasks/contactor_func_init.c **** p->ka_k        = pdMS_TO_TICKS(p->lc.ka_t);        // Command/Keep-alive CAN msg timeout duration.
+ 182              		.loc 1 72 0
+ 183 010c DAF81C20 		ldr	r2, [r10, #28]
+ 184 0110 4FF47A73 		mov	r3, #1000
+ 185 0114 03FB02F1 		mul	r1, r3, r2
+ 186 0118 7A4A     		ldr	r2, .L7+12
+ 187 011a A2FB0101 		umull	r0, r1, r2, r1
+ 188 011e 8909     		lsrs	r1, r1, #6
+ 189 0120 CAF81C11 		str	r1, [r10, #284]
+  73:Ourtasks/contactor_func_init.c **** p->prechgmin_k = pdMS_TO_TICKS(p->lc.prechgmin_t); // Minimum pre-charge duration
+ 190              		.loc 1 73 0
+ 191 0124 DAF84010 		ldr	r1, [r10, #64]
+ 192 0128 03FB01F1 		mul	r1, r3, r1
+ 193 012c A2FB0101 		umull	r0, r1, r2, r1
+ 194 0130 8909     		lsrs	r1, r1, #6
+ 195 0132 CAF81411 		str	r1, [r10, #276]
+  74:Ourtasks/contactor_func_init.c **** p->prechgmax_k = pdMS_TO_TICKS(p->lc.prechgmax_t); // Maximum allowed for voltage to reach threshol
+ 196              		.loc 1 74 0
+ 197 0136 DAF84410 		ldr	r1, [r10, #68]
+ 198 013a 03FB01F1 		mul	r1, r3, r1
+ 199 013e A2FB0101 		umull	r0, r1, r2, r1
+ 200 0142 8909     		lsrs	r1, r1, #6
+ 201 0144 CAF82011 		str	r1, [r10, #288]
+  75:Ourtasks/contactor_func_init.c **** p->close1_k    = pdMS_TO_TICKS(p->lc.close1_t);    // contactor #1 coil energize-closure (timeout d
+ 202              		.loc 1 75 0
+ 203 0148 DAF83010 		ldr	r1, [r10, #48]
+ 204 014c 03FB01F1 		mul	r1, r3, r1
+ 205 0150 A2FB0101 		umull	r0, r1, r2, r1
+ 206 0154 8909     		lsrs	r1, r1, #6
+ 207 0156 CAF82411 		str	r1, [r10, #292]
+  76:Ourtasks/contactor_func_init.c **** p->close2_k    = pdMS_TO_TICKS(p->lc.close2_t);    // contactor #2 coil energize-closure (timeout d
+ 208              		.loc 1 76 0
+ARM GAS  /tmp/ccxW6knG.s 			page 6
+
+
+ 209 015a DAF83410 		ldr	r1, [r10, #52]
+ 210 015e 03FB01F1 		mul	r1, r3, r1
+ 211 0162 A2FB0101 		umull	r0, r1, r2, r1
+ 212 0166 8909     		lsrs	r1, r1, #6
+ 213 0168 CAF82811 		str	r1, [r10, #296]
+  77:Ourtasks/contactor_func_init.c **** p->open1_k     = pdMS_TO_TICKS(p->lc.open1_t);     // contactor #1 coil de-energize-open (timeout d
+ 214              		.loc 1 77 0
+ 215 016c DAF83810 		ldr	r1, [r10, #56]
+ 216 0170 03FB01F1 		mul	r1, r3, r1
+ 217 0174 A2FB0101 		umull	r0, r1, r2, r1
+ 218 0178 8909     		lsrs	r1, r1, #6
+ 219 017a CAF82C11 		str	r1, [r10, #300]
+  78:Ourtasks/contactor_func_init.c **** p->open2_k     = pdMS_TO_TICKS(p->lc.open2_t);     // contactor #2 coil de-energize-open (timeout d
+ 220              		.loc 1 78 0
+ 221 017e DAF83C10 		ldr	r1, [r10, #60]
+ 222 0182 03FB01F1 		mul	r1, r3, r1
+ 223 0186 A2FB0101 		umull	r0, r1, r2, r1
+ 224 018a 8909     		lsrs	r1, r1, #6
+ 225 018c CAF83011 		str	r1, [r10, #304]
+  79:Ourtasks/contactor_func_init.c **** p->keepalive_k = pdMS_TO_TICKS(p->lc.keepalive_t); // keep-alive timeout (timeout delay ticks)
+ 226              		.loc 1 79 0
+ 227 0190 DAF85810 		ldr	r1, [r10, #88]
+ 228 0194 03FB01F1 		mul	r1, r3, r1
+ 229 0198 A2FB0101 		umull	r0, r1, r2, r1
+ 230 019c 8909     		lsrs	r1, r1, #6
+ 231 019e CAF83411 		str	r1, [r10, #308]
+  80:Ourtasks/contactor_func_init.c **** p->hbct1_k     = pdMS_TO_TICKS(p->lc.hbct1_t);     // Heartbeat ct: ticks between sending msgs hv1:
+ 232              		.loc 1 80 0
+ 233 01a2 DAF85C10 		ldr	r1, [r10, #92]
+ 234 01a6 03FB01F1 		mul	r1, r3, r1
+ 235 01aa A2FB0101 		umull	r0, r1, r2, r1
+ 236 01ae 8909     		lsrs	r1, r1, #6
+ 237 01b0 CAF83811 		str	r1, [r10, #312]
+  81:Ourtasks/contactor_func_init.c **** p->hbct2_k     = pdMS_TO_TICKS(p->lc.hbct2_t);     // Heartbeat ct: ticks between sending msgs hv2:
+ 238              		.loc 1 81 0
+ 239 01b4 DAF86010 		ldr	r1, [r10, #96]
+ 240 01b8 03FB01F3 		mul	r3, r3, r1
+ 241 01bc A2FB0323 		umull	r2, r3, r2, r3
+ 242 01c0 9B09     		lsrs	r3, r3, #6
+ 243 01c2 CAF83C31 		str	r3, [r10, #316]
+  82:Ourtasks/contactor_func_init.c **** 
+  83:Ourtasks/contactor_func_init.c **** 	/* Add CAN Mailboxes                         CAN           CAN ID              Notify bit   Paytyp
+  84:Ourtasks/contactor_func_init.c **** 	p->pmbx_cid_cmd_i       =  MailboxTask_add(pctl0,p->lc.cid_cmd_i,      NULL,CNCTBIT06,0,36);
+ 244              		.loc 1 84 0
+ 245 01c6 504C     		ldr	r4, .L7+16
+ 246 01c8 2423     		movs	r3, #36
+ 247 01ca 0193     		str	r3, [sp, #4]
+ 248 01cc 0026     		movs	r6, #0
+ 249 01ce 0096     		str	r6, [sp]
+ 250 01d0 4023     		movs	r3, #64
+ 251 01d2 3246     		mov	r2, r6
+ 252 01d4 DAF8C810 		ldr	r1, [r10, #200]
+ 253 01d8 2068     		ldr	r0, [r4]
+ 254 01da FFF7FEFF 		bl	MailboxTask_add
+ 255              	.LVL27:
+ 256 01de CAF81402 		str	r0, [r10, #532]
+  85:Ourtasks/contactor_func_init.c **** 	p->pmbx_cid_keepalive_i =  MailboxTask_add(pctl0,p->lc.cid_keepalive_i,NULL,CNCTBIT07,0,23);
+ARM GAS  /tmp/ccxW6knG.s 			page 7
+
+
+ 257              		.loc 1 85 0
+ 258 01e2 1725     		movs	r5, #23
+ 259 01e4 0195     		str	r5, [sp, #4]
+ 260 01e6 0096     		str	r6, [sp]
+ 261 01e8 8023     		movs	r3, #128
+ 262 01ea 3246     		mov	r2, r6
+ 263 01ec DAF8CC10 		ldr	r1, [r10, #204]
+ 264 01f0 2068     		ldr	r0, [r4]
+ 265 01f2 FFF7FEFF 		bl	MailboxTask_add
+ 266              	.LVL28:
+ 267 01f6 CAF81802 		str	r0, [r10, #536]
+  86:Ourtasks/contactor_func_init.c **** 	p->pmbx_cid_gps_sync    =  MailboxTask_add(pctl0,p->lc.cid_gps_sync,   NULL,CNCTBIT08,0,23);
+ 268              		.loc 1 86 0
+ 269 01fa 2068     		ldr	r0, [r4]
+ 270 01fc 0195     		str	r5, [sp, #4]
+ 271 01fe 0096     		str	r6, [sp]
+ 272 0200 4FF48073 		mov	r3, #256
+ 273 0204 3246     		mov	r2, r6
+ 274 0206 DAF8D010 		ldr	r1, [r10, #208]
+ 275 020a FFF7FEFF 		bl	MailboxTask_add
+ 276              	.LVL29:
+ 277 020e CAF81C02 		str	r0, [r10, #540]
+  87:Ourtasks/contactor_func_init.c **** 
+  88:Ourtasks/contactor_func_init.c **** 	/* PWM working struct for switching PWM values */
+  89:Ourtasks/contactor_func_init.c **** 	p->sConfigOCn.OCMode = TIM_OCMODE_PWM1;
+ 278              		.loc 1 89 0
+ 279 0212 6023     		movs	r3, #96
+ 280 0214 CAF82832 		str	r3, [r10, #552]
+  90:Ourtasks/contactor_func_init.c **** 	p->sConfigOCn.Pulse = 0;	// New PWM value inserted here during execution
+ 281              		.loc 1 90 0
+ 282 0218 CAF82C62 		str	r6, [r10, #556]
+  91:Ourtasks/contactor_func_init.c **** 	p->sConfigOCn.OCPolarity = TIM_OCPOLARITY_HIGH;
+ 283              		.loc 1 91 0
+ 284 021c CAF83062 		str	r6, [r10, #560]
+  92:Ourtasks/contactor_func_init.c **** 	p->sConfigOCn.OCFastMode = TIM_OCFAST_DISABLE;
+ 285              		.loc 1 92 0
+ 286 0220 CAF83862 		str	r6, [r10, #568]
+  93:Ourtasks/contactor_func_init.c **** 
+  94:Ourtasks/contactor_func_init.c **** 	// Convert PWM as percent to timer count used in HAL setup struct
+  95:Ourtasks/contactor_func_init.c ****    p->ipwmpct1 = p->lc.fpwmpct1 * 0.01 * (htim4.Init.Period + 1) - 1;
+ 287              		.loc 1 95 0
+ 288 0224 DAF85000 		ldr	r0, [r10, #80]	@ float
+ 289 0228 FFF7FEFF 		bl	__aeabi_f2d
+ 290              	.LVL30:
+ 291 022c 32A3     		adr	r3, .L7
+ 292 022e D3E90023 		ldrd	r2, [r3]
+ 293 0232 FFF7FEFF 		bl	__aeabi_dmul
+ 294              	.LVL31:
+ 295 0236 8046     		mov	r8, r0
+ 296 0238 8946     		mov	r9, r1
+ 297 023a 344B     		ldr	r3, .L7+20
+ 298 023c D868     		ldr	r0, [r3, #12]
+ 299 023e 0130     		adds	r0, r0, #1
+ 300 0240 FFF7FEFF 		bl	__aeabi_ui2d
+ 301              	.LVL32:
+ 302 0244 0446     		mov	r4, r0
+ 303 0246 0D46     		mov	r5, r1
+ARM GAS  /tmp/ccxW6knG.s 			page 8
+
+
+ 304 0248 0246     		mov	r2, r0
+ 305 024a 0B46     		mov	r3, r1
+ 306 024c 4046     		mov	r0, r8
+ 307 024e 4946     		mov	r1, r9
+ 308 0250 FFF7FEFF 		bl	__aeabi_dmul
+ 309              	.LVL33:
+ 310 0254 0022     		movs	r2, #0
+ 311 0256 2E4B     		ldr	r3, .L7+24
+ 312 0258 FFF7FEFF 		bl	__aeabi_dsub
+ 313              	.LVL34:
+ 314 025c FFF7FEFF 		bl	__aeabi_d2uiz
+ 315              	.LVL35:
+ 316 0260 CAF82002 		str	r0, [r10, #544]
+  96:Ourtasks/contactor_func_init.c ****    p->ipwmpct2 = p->lc.fpwmpct2 * 0.01 * (htim4.Init.Period + 1) - 1;
+ 317              		.loc 1 96 0
+ 318 0264 DAF85400 		ldr	r0, [r10, #84]	@ float
+ 319 0268 FFF7FEFF 		bl	__aeabi_f2d
+ 320              	.LVL36:
+ 321 026c 22A3     		adr	r3, .L7
+ 322 026e D3E90023 		ldrd	r2, [r3]
+ 323 0272 FFF7FEFF 		bl	__aeabi_dmul
+ 324              	.LVL37:
+ 325 0276 0246     		mov	r2, r0
+ 326 0278 0B46     		mov	r3, r1
+ 327 027a 2046     		mov	r0, r4
+ 328 027c 2946     		mov	r1, r5
+ 329 027e FFF7FEFF 		bl	__aeabi_dmul
+ 330              	.LVL38:
+ 331 0282 0022     		movs	r2, #0
+ 332 0284 224B     		ldr	r3, .L7+24
+ 333 0286 FFF7FEFF 		bl	__aeabi_dsub
+ 334              	.LVL39:
+ 335 028a FFF7FEFF 		bl	__aeabi_d2uiz
+ 336              	.LVL40:
+ 337 028e CAF82402 		str	r0, [r10, #548]
+ 338              	.LVL41:
+  97:Ourtasks/contactor_func_init.c **** 
+  98:Ourtasks/contactor_func_init.c **** 	/* Pre-load fixed data in CAN msgs */
+  99:Ourtasks/contactor_func_init.c **** 	for (i = 0; i < NUMCANMSGS; i++)
+ 339              		.loc 1 99 0
+ 340 0292 3246     		mov	r2, r6
+ 341 0294 12E0     		b	.L4
+ 342              	.LVL42:
+ 343              	.L5:
+ 100:Ourtasks/contactor_func_init.c **** 	{
+ 101:Ourtasks/contactor_func_init.c **** 		p->canmsg[i].pctl = pctl0;   // Control block for CAN module (CAN 1)
+ 344              		.loc 1 101 0 discriminator 3
+ 345 0296 0AEB4211 		add	r1, r10, r2, lsl #5
+ 346 029a 1B4B     		ldr	r3, .L7+16
+ 347 029c 1B68     		ldr	r3, [r3]
+ 348 029e C1F84832 		str	r3, [r1, #584]
+ 102:Ourtasks/contactor_func_init.c **** 		p->canmsg[i].maxretryct = 8; //
+ 349              		.loc 1 102 0 discriminator 3
+ 350 02a2 02F11303 		add	r3, r2, #19
+ 351 02a6 5B01     		lsls	r3, r3, #5
+ 352 02a8 0AEB0304 		add	r4, r10, r3
+ 353 02ac 0820     		movs	r0, #8
+ARM GAS  /tmp/ccxW6knG.s 			page 9
+
+
+ 354 02ae 0AF80300 		strb	r0, [r10, r3]
+ 103:Ourtasks/contactor_func_init.c **** 		p->canmsg[i].bits = 0;       //
+ 355              		.loc 1 103 0 discriminator 3
+ 356 02b2 0023     		movs	r3, #0
+ 357 02b4 6370     		strb	r3, [r4, #1]
+ 104:Ourtasks/contactor_func_init.c **** 		p->canmsg[i].can.dlc = 8;    // Default payload size (might be modified when loaded and sent)
+ 358              		.loc 1 104 0 discriminator 3
+ 359 02b6 C1F85402 		str	r0, [r1, #596]
+  99:Ourtasks/contactor_func_init.c **** 	{
+ 360              		.loc 1 99 0 discriminator 3
+ 361 02ba 0132     		adds	r2, r2, #1
+ 362              	.LVL43:
+ 363              	.L4:
+  99:Ourtasks/contactor_func_init.c **** 	{
+ 364              		.loc 1 99 0 is_stmt 0 discriminator 1
+ 365 02bc 052A     		cmp	r2, #5
+ 366 02be EADD     		ble	.L5
+ 105:Ourtasks/contactor_func_init.c **** 	}
+ 106:Ourtasks/contactor_func_init.c **** 
+ 107:Ourtasks/contactor_func_init.c **** 	// Pre-load CAN ids
+ 108:Ourtasks/contactor_func_init.c **** 	p->canmsg[CID_KA_R ].can.id  = p->lc.cid_keepalive_r;
+ 367              		.loc 1 108 0 is_stmt 1
+ 368 02c0 DAF8C430 		ldr	r3, [r10, #196]
+ 369 02c4 CAF85032 		str	r3, [r10, #592]
+ 109:Ourtasks/contactor_func_init.c **** 	p->canmsg[CID_MSG1 ].can.id  = p->lc.cid_msg1;
+ 370              		.loc 1 109 0
+ 371 02c8 DAF8B830 		ldr	r3, [r10, #184]
+ 372 02cc CAF87032 		str	r3, [r10, #624]
+ 110:Ourtasks/contactor_func_init.c **** 	p->canmsg[CID_MSG2 ].can.id  = p->lc.cid_msg2;
+ 373              		.loc 1 110 0
+ 374 02d0 DAF8BC30 		ldr	r3, [r10, #188]
+ 375 02d4 CAF89032 		str	r3, [r10, #656]
+ 111:Ourtasks/contactor_func_init.c **** 	p->canmsg[CID_CMD_R].can.id  = p->lc.cid_cmd_r;
+ 376              		.loc 1 111 0
+ 377 02d8 DAF8C030 		ldr	r3, [r10, #192]
+ 378 02dc CAF8B032 		str	r3, [r10, #688]
+ 112:Ourtasks/contactor_func_init.c **** 	p->canmsg[CID_HB1  ].can.id  = p->lc.cid_hb1;
+ 379              		.loc 1 112 0
+ 380 02e0 DAF8B030 		ldr	r3, [r10, #176]
+ 381 02e4 CAF8D032 		str	r3, [r10, #720]
+ 113:Ourtasks/contactor_func_init.c **** 	p->canmsg[CID_HB2  ].can.id  = p->lc.cid_hb2;
+ 382              		.loc 1 113 0
+ 383 02e8 DAF8B430 		ldr	r3, [r10, #180]
+ 384 02ec CAF8F032 		str	r3, [r10, #752]
+ 114:Ourtasks/contactor_func_init.c **** 
+ 115:Ourtasks/contactor_func_init.c **** 	return;
+ 116:Ourtasks/contactor_func_init.c **** }
+ 385              		.loc 1 116 0
+ 386 02f0 02B0     		add	sp, sp, #8
+ 387              	.LCFI2:
+ 388              		.cfi_def_cfa_offset 32
+ 389              		@ sp needed
+ 390 02f2 BDE8F087 		pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+ 391              	.LVL44:
+ 392              	.L8:
+ 393 02f6 00BF     		.align	3
+ 394              	.L7:
+ARM GAS  /tmp/ccxW6knG.s 			page 10
+
+
+ 395 02f8 7B14AE47 		.word	1202590843
+ 396 02fc E17A843F 		.word	1065646817
+ 397 0300 0000E040 		.word	1088421888
+ 398 0304 D34D6210 		.word	274877907
+ 399 0308 00000000 		.word	pctl0
+ 400 030c 00000000 		.word	htim4
+ 401 0310 0000F03F 		.word	1072693248
+ 402              		.cfi_endproc
+ 403              	.LFE69:
+ 405              		.section	.text.contactor_func_init_canfilter,"ax",%progbits
+ 406              		.align	2
+ 407              		.global	contactor_func_init_canfilter
+ 408              		.thumb
+ 409              		.thumb_func
+ 411              	contactor_func_init_canfilter:
+ 412              	.LFB70:
+ 117:Ourtasks/contactor_func_init.c **** /* *************************************************************************
+ 118:Ourtasks/contactor_func_init.c ****  * void contactor_func_init_canfilter(struct CONTACTORFUNCTION* p);
+ 119:Ourtasks/contactor_func_init.c ****  *	@brief	: Setup CAN hardware filter with CAN addresses to receive
+ 120:Ourtasks/contactor_func_init.c ****  * @param	: p    = pointer to ContactorTask
+ 121:Ourtasks/contactor_func_init.c ****  * *************************************************************************/
+ 122:Ourtasks/contactor_func_init.c **** void contactor_func_init_canfilter(struct CONTACTORFUNCTION* p)
+ 123:Ourtasks/contactor_func_init.c **** {
+ 413              		.loc 1 123 0
+ 414              		.cfi_startproc
+ 415              		@ args = 0, pretend = 0, frame = 0
+ 416              		@ frame_needed = 0, uses_anonymous_args = 0
+ 417              	.LVL45:
+ 418 0000 10B5     		push	{r4, lr}
+ 419              	.LCFI3:
+ 420              		.cfi_def_cfa_offset 8
+ 421              		.cfi_offset 4, -8
+ 422              		.cfi_offset 14, -4
+ 423 0002 0446     		mov	r4, r0
+ 124:Ourtasks/contactor_func_init.c **** /*	HAL_StatusTypeDef canfilter_setup_add32b_id(uint8_t cannum, CAN_HandleTypeDef *phcan, \
+ 125:Ourtasks/contactor_func_init.c ****     uint32_t id,   \
+ 126:Ourtasks/contactor_func_init.c ****     uint8_t  fifo );
+ 127:Ourtasks/contactor_func_init.c ****  @brief	: Add a 32b id, advance bank number & odd/even
+ 128:Ourtasks/contactor_func_init.c ****  * @param	: cannum = CAN module number 1, 2, or 3
+ 129:Ourtasks/contactor_func_init.c ****  * @param	: phcan = Pointer to HAL CAN handle (control block)
+ 130:Ourtasks/contactor_func_init.c ****  * @param	: id    = 32b CAN id
+ 131:Ourtasks/contactor_func_init.c ****  * @param	: fifo  = fifo: 0 or 1
+ 132:Ourtasks/contactor_func_init.c ****  * @return	: HAL_ERROR or HAL_OK
+ 133:Ourtasks/contactor_func_init.c **** */
+ 134:Ourtasks/contactor_func_init.c **** 	HAL_StatusTypeDef ret;
+ 135:Ourtasks/contactor_func_init.c **** 
+ 136:Ourtasks/contactor_func_init.c **** 	// CANID_CMD_CNTCTR1I: U8_VAR: Contactor1: I: Command CANID incoming
+ 137:Ourtasks/contactor_func_init.c **** 	ret = canfilter_setup_add32b_id(1,&hcan,p->lc.cid_cmd_i,0);
+ 424              		.loc 1 137 0
+ 425 0004 0023     		movs	r3, #0
+ 426 0006 D0F8C820 		ldr	r2, [r0, #200]
+ 427 000a 1149     		ldr	r1, .L14
+ 428 000c 0120     		movs	r0, #1
+ 429              	.LVL46:
+ 430 000e FFF7FEFF 		bl	canfilter_setup_add32b_id
+ 431              	.LVL47:
+ 138:Ourtasks/contactor_func_init.c **** 	if (ret == HAL_ERROR) morse_trap(61);	
+ARM GAS  /tmp/ccxW6knG.s 			page 11
+
+
+ 432              		.loc 1 138 0
+ 433 0012 0128     		cmp	r0, #1
+ 434 0014 02D1     		bne	.L10
+ 435              		.loc 1 138 0 is_stmt 0 discriminator 1
+ 436 0016 3D20     		movs	r0, #61
+ 437              	.LVL48:
+ 438 0018 FFF7FEFF 		bl	morse_trap
+ 439              	.LVL49:
+ 440              	.L10:
+ 139:Ourtasks/contactor_func_init.c **** 
+ 140:Ourtasks/contactor_func_init.c **** 	// CANID_CMD_CNTCTRKAI:U8',    Contactor1: I KeepAlive and connect command
+ 141:Ourtasks/contactor_func_init.c **** 	ret = canfilter_setup_add32b_id(1,&hcan,p->lc.cid_keepalive_i,0);
+ 441              		.loc 1 141 0 is_stmt 1
+ 442 001c 0023     		movs	r3, #0
+ 443 001e D4F8CC20 		ldr	r2, [r4, #204]
+ 444 0022 0B49     		ldr	r1, .L14
+ 445 0024 0120     		movs	r0, #1
+ 446 0026 FFF7FEFF 		bl	canfilter_setup_add32b_id
+ 447              	.LVL50:
+ 142:Ourtasks/contactor_func_init.c **** 	if (ret == HAL_ERROR) morse_trap(62);	
+ 448              		.loc 1 142 0
+ 449 002a 0128     		cmp	r0, #1
+ 450 002c 02D1     		bne	.L11
+ 451              		.loc 1 142 0 is_stmt 0 discriminator 1
+ 452 002e 3E20     		movs	r0, #62
+ 453              	.LVL51:
+ 454 0030 FFF7FEFF 		bl	morse_trap
+ 455              	.LVL52:
+ 456              	.L11:
+ 143:Ourtasks/contactor_func_init.c **** 
+ 144:Ourtasks/contactor_func_init.c **** 	// CANID_HB_TIMESYNC:  U8 : GPS_1: U8 GPS time sync distribution msg-GPS time sync msg
+ 145:Ourtasks/contactor_func_init.c **** 	ret = canfilter_setup_add32b_id(1,&hcan,p->lc.cid_gps_sync,0);
+ 457              		.loc 1 145 0 is_stmt 1
+ 458 0034 0023     		movs	r3, #0
+ 459 0036 D4F8D020 		ldr	r2, [r4, #208]
+ 460 003a 0549     		ldr	r1, .L14
+ 461 003c 0120     		movs	r0, #1
+ 462 003e FFF7FEFF 		bl	canfilter_setup_add32b_id
+ 463              	.LVL53:
+ 146:Ourtasks/contactor_func_init.c **** 	if (ret == HAL_ERROR) morse_trap(63);	
+ 464              		.loc 1 146 0
+ 465 0042 0128     		cmp	r0, #1
+ 466 0044 02D1     		bne	.L9
+ 467              		.loc 1 146 0 is_stmt 0 discriminator 1
+ 468 0046 3F20     		movs	r0, #63
+ 469              	.LVL54:
+ 470 0048 FFF7FEFF 		bl	morse_trap
+ 471              	.LVL55:
+ 472              	.L9:
+ 473 004c 10BD     		pop	{r4, pc}
+ 474              	.LVL56:
+ 475              	.L15:
+ 476 004e 00BF     		.align	2
+ 477              	.L14:
+ 478 0050 00000000 		.word	hcan
+ 479              		.cfi_endproc
+ 480              	.LFE70:
+ARM GAS  /tmp/ccxW6knG.s 			page 12
+
+
+ 482              		.text
+ 483              	.Letext0:
+ 484              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 485              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 486              		.file 4 "Ourtasks/iir_filter_lx.h"
+ 487              		.file 5 "Ourwares/common_misc.h"
+ 488              		.file 6 "Ourwares/common_can.h"
+ 489              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 490              		.file 8 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 491              		.file 9 "Middlewares/Third_Party/FreeRTOS/Source/include/timers.h"
+ 492              		.file 10 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 493              		.file 11 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 494              		.file 12 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h"
+ 495              		.file 13 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 496              		.file 14 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 497              		.file 15 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_can.h"
+ 498              		.file 16 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h"
+ 499              		.file 17 "Ourtasks/contactor_idx_v_struct.h"
+ 500              		.file 18 "Ourtasks/adc_idx_v_struct.h"
+ 501              		.file 19 "Ourwares/CanTask.h"
+ 502              		.file 20 "Ourwares/can_iface.h"
+ 503              		.file 21 "Ourtasks/ContactorTask.h"
+ 504              		.file 22 "Ourtasks/adcparams.h"
+ 505              		.file 23 "Ourwares/MailboxTask.h"
+ 506              		.file 24 "Ourtasks/cic_filter_l_N2_M3.h"
+ 507              		.file 25 "Drivers/CMSIS/Include/core_cm3.h"
+ 508              		.file 26 "Ourwares/canfilter_setup.h"
+ 509              		.file 27 "Ourwares/morse.h"
+ARM GAS  /tmp/ccxW6knG.s 			page 13
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 contactor_func_init.c
+     /tmp/ccxW6knG.s:27     .text.contactor_func_init_init:00000000 $t
+     /tmp/ccxW6knG.s:32     .text.contactor_func_init_init:00000000 contactor_func_init_init
+     /tmp/ccxW6knG.s:395    .text.contactor_func_init_init:000002f8 $d
+     /tmp/ccxW6knG.s:406    .text.contactor_func_init_canfilter:00000000 $t
+     /tmp/ccxW6knG.s:411    .text.contactor_func_init_canfilter:00000000 contactor_func_init_canfilter
+     /tmp/ccxW6knG.s:478    .text.contactor_func_init_canfilter:00000050 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+__aeabi_ui2d
+__aeabi_ddiv
+__aeabi_dmul
+__aeabi_d2uiz
+__aeabi_f2d
+__aeabi_d2iz
+__aeabi_dsub
+MailboxTask_add
+pctl0
+htim4
+canfilter_setup_add32b_id
+morse_trap
+hcan

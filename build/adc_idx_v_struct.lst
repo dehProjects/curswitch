@@ -1,0 +1,327 @@
+ARM GAS  /tmp/ccmRHPqa.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"adc_idx_v_struct.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.adc_idx_v_struct_hardcode_params,"ax",%progbits
+  20              		.align	2
+  21              		.global	adc_idx_v_struct_hardcode_params
+  22              		.thumb
+  23              		.thumb_func
+  25              	adc_idx_v_struct_hardcode_params:
+  26              	.LFB69:
+  27              		.file 1 "Ourtasks/adc_idx_v_struct.c"
+   1:Ourtasks/adc_idx_v_struct.c **** /******************************************************************************
+   2:Ourtasks/adc_idx_v_struct.c **** * File Name          : adc_idx_v_struct.c
+   3:Ourtasks/adc_idx_v_struct.c **** * Date First Issued  : 06/17/2019
+   4:Ourtasks/adc_idx_v_struct.c **** * Board              :
+   5:Ourtasks/adc_idx_v_struct.c **** * Description        : Load sram local copy of parameters
+   6:Ourtasks/adc_idx_v_struct.c **** *******************************************************************************/
+   7:Ourtasks/adc_idx_v_struct.c **** #include "adc_idx_v_struct.h"
+   8:Ourtasks/adc_idx_v_struct.c **** 
+   9:Ourtasks/adc_idx_v_struct.c **** /* **************************************************************************************
+  10:Ourtasks/adc_idx_v_struct.c ****  * int adc_idx_v_struct_hardcode_params(struct ADCCONTACTORLC* p);
+  11:Ourtasks/adc_idx_v_struct.c ****  * @brief	: Hard-code load local copy with parameters
+  12:Ourtasks/adc_idx_v_struct.c ****  * @return	: 0
+  13:Ourtasks/adc_idx_v_struct.c ****  * ************************************************************************************** */
+  14:Ourtasks/adc_idx_v_struct.c **** int adc_idx_v_struct_hardcode_params(struct ADCCONTACTORLC* p)
+  15:Ourtasks/adc_idx_v_struct.c **** {
+  28              		.loc 1 15 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              		@ link register save eliminated.
+  33              	.LVL0:
+  34 0000 F0B4     		push	{r4, r5, r6, r7}
+  35              	.LCFI0:
+  36              		.cfi_def_cfa_offset 16
+  37              		.cfi_offset 4, -16
+  38              		.cfi_offset 5, -12
+  39              		.cfi_offset 6, -8
+  40              		.cfi_offset 7, -4
+  41 0002 0346     		mov	r3, r0
+  16:Ourtasks/adc_idx_v_struct.c **** /* Copy for convenience--
+  17:Ourtasks/adc_idx_v_struct.c ****  struct ADCCONTACTORLC
+ARM GAS  /tmp/ccmRHPqa.s 			page 2
+
+
+  18:Ourtasks/adc_idx_v_struct.c ****  {
+  19:Ourtasks/adc_idx_v_struct.c **** 	uint32_t size;			// Number of items in struct
+  20:Ourtasks/adc_idx_v_struct.c ****  	uint32_t crc;			// crc-32 placed by loader
+  21:Ourtasks/adc_idx_v_struct.c **** 	uint32_t version;		// struct version number
+  22:Ourtasks/adc_idx_v_struct.c **** 	struct ADC1CALINTERNAL calintern; // Vref and Temp internal sensors
+  23:Ourtasks/adc_idx_v_struct.c **** 	struct ADCCALHE cal_cur1; // Hall-effect current calibration, battery string
+  24:Ourtasks/adc_idx_v_struct.c **** 	struct ADCCALHE cal_cur2; // Hall-effect current calibration, spare 
+  25:Ourtasks/adc_idx_v_struct.c **** 	struct ADCCALABS cal_5v;  // 5v regulated voltage 
+  26:Ourtasks/adc_idx_v_struct.c **** 	struct ADCCALABS cal_12v; // 12v raw CAN voltage
+  27:Ourtasks/adc_idx_v_struct.c ****  };
+  28:Ourtasks/adc_idx_v_struct.c **** */
+  29:Ourtasks/adc_idx_v_struct.c **** 	p->size     = 37; // Number of items in list
+  42              		.loc 1 29 0
+  43 0004 2522     		movs	r2, #37
+  44 0006 0260     		str	r2, [r0]
+  30:Ourtasks/adc_idx_v_struct.c **** 	p->crc      = 0;  // TODO
+  45              		.loc 1 30 0
+  46 0008 0020     		movs	r0, #0
+  47              	.LVL1:
+  48 000a 5860     		str	r0, [r3, #4]
+  31:Ourtasks/adc_idx_v_struct.c ****    p->version  = 1;
+  49              		.loc 1 31 0
+  50 000c 0122     		movs	r2, #1
+  51 000e 9A60     		str	r2, [r3, #8]
+  32:Ourtasks/adc_idx_v_struct.c **** 	p->hbct     = 1000;  // Time (ms) between HB msg
+  52              		.loc 1 32 0
+  53 0010 4FF47A72 		mov	r2, #1000
+  54 0014 DA60     		str	r2, [r3, #12]
+  33:Ourtasks/adc_idx_v_struct.c **** 
+  34:Ourtasks/adc_idx_v_struct.c **** /* Reproduced for convenience 
+  35:Ourtasks/adc_idx_v_struct.c **** struct ADC1CALINTERNAL
+  36:Ourtasks/adc_idx_v_struct.c **** {
+  37:Ourtasks/adc_idx_v_struct.c **** 	struct IIR_L_PARAM iiradcvref; // Filter: adc readings: Vref 
+  38:Ourtasks/adc_idx_v_struct.c **** 	struct IIR_L_PARAM iiradctemp; // Filter: adc readings: temperature
+  39:Ourtasks/adc_idx_v_struct.c **** 	uint32_t adcvdd;   // (ADC reading) for calibrating Vdd (3.3v)
+  40:Ourtasks/adc_idx_v_struct.c **** 	uint32_t adcrmtmp; // (ADC reading) room temperature reading
+  41:Ourtasks/adc_idx_v_struct.c **** 	uint32_t rmtmp;    // Room temp for reading (deg C)
+  42:Ourtasks/adc_idx_v_struct.c **** 	double dvdd;       // (double) measured Vdd (volts)
+  43:Ourtasks/adc_idx_v_struct.c **** 	double dslope;     // (double) mv/degC temperature sensor slope
+  44:Ourtasks/adc_idx_v_struct.c **** };
+  45:Ourtasks/adc_idx_v_struct.c **** */
+  46:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.iiradcvref.k     = 20;    // Filter time constant
+  55              		.loc 1 46 0
+  56 0016 1422     		movs	r2, #20
+  57 0018 1A61     		str	r2, [r3, #16]
+  47:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.iiradcvref.scale = 64;
+  58              		.loc 1 47 0
+  59 001a 4022     		movs	r2, #64
+  60 001c 5A61     		str	r2, [r3, #20]
+  48:Ourtasks/adc_idx_v_struct.c **** 
+  49:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.iiradctemp.k     = 100;    // Filter time constant
+  61              		.loc 1 49 0
+  62 001e 6422     		movs	r2, #100
+  63 0020 9A61     		str	r2, [r3, #24]
+  50:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.iiradctemp.scale = 4;
+  64              		.loc 1 50 0
+  65 0022 0422     		movs	r2, #4
+ARM GAS  /tmp/ccmRHPqa.s 			page 3
+
+
+  66 0024 DA61     		str	r2, [r3, #28]
+  51:Ourtasks/adc_idx_v_struct.c **** 
+  52:Ourtasks/adc_idx_v_struct.c **** 	// Internal voltage ref: ADC1IDX_INTERNALVREF  5   // IN18     - Internal voltage reference
+  53:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.dvdd   = 3.29;	// Vdd for following Vref ADC reading
+  67              		.loc 1 53 0
+  68 0026 2EA5     		adr	r5, .L3
+  69 0028 D5E90045 		ldrd	r4, [r5]
+  70 002c C3E90C45 		strd	r4, [r3, #48]
+  54:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.adcvdd = 23928;  //(16*1495.5) ADC reading (DMA sum) for above Vdd
+  71              		.loc 1 54 0
+  72 0030 45F67852 		movw	r2, #23928
+  73 0034 9A64     		str	r2, [r3, #72]
+  55:Ourtasks/adc_idx_v_struct.c **** 
+  56:Ourtasks/adc_idx_v_struct.c **** 	// Internal temperature: ADC1IDX_INTERNALTEMP  4   // IN17     - Internal temperature sensor
+  57:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.adcrmtmp  = 26990; // Room temp ADC (DMA sum) reading
+  74              		.loc 1 57 0
+  75 0036 46F66E12 		movw	r2, #26990
+  76 003a DA64     		str	r2, [r3, #76]
+  58:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.drmtemp   = 25.0;  // Room temp for ADC reading     
+  77              		.loc 1 58 0
+  78 003c 0024     		movs	r4, #0
+  79 003e 364D     		ldr	r5, .L3+56
+  80 0040 C3E90845 		strd	r4, [r3, #32]
+  59:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.dslope    = 4.3;   // mv/degC slope of temperature sensor
+  81              		.loc 1 59 0
+  82 0044 28A5     		adr	r5, .L3+8
+  83 0046 D5E90045 		ldrd	r4, [r5]
+  84 004a C3E90E45 		strd	r4, [r3, #56]
+  60:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.dvreftmpco= 15;    // Vref temp coefficient (15 is based on similar parts)
+  85              		.loc 1 60 0
+  86 004e 0024     		movs	r4, #0
+  87 0050 324D     		ldr	r5, .L3+60
+  88 0052 C3E91045 		strd	r4, [r3, #64]
+  61:Ourtasks/adc_idx_v_struct.c **** 	p->calintern.dvtemp    = 1.40;  // Vtemp voltage at 25 degC
+  89              		.loc 1 61 0
+  90 0056 26A5     		adr	r5, .L3+16
+  91 0058 D5E90045 		ldrd	r4, [r5]
+  92 005c C3E90A45 		strd	r4, [r3, #40]
+  62:Ourtasks/adc_idx_v_struct.c **** 
+  63:Ourtasks/adc_idx_v_struct.c **** /*  Reproduced for convenience 
+  64:Ourtasks/adc_idx_v_struct.c **** struct ADCCALHE
+  65:Ourtasks/adc_idx_v_struct.c **** {
+  66:Ourtasks/adc_idx_v_struct.c **** 	struct IIR_L_PARAM iir; // Filter: Time constant, integer scaling
+  67:Ourtasks/adc_idx_v_struct.c **** 	double   scale;     // Resistor ratio to scale to desired units
+  68:Ourtasks/adc_idx_v_struct.c **** 	uint32_t j5adcve;   // jumpered to 5v: adc reading HE input
+  69:Ourtasks/adc_idx_v_struct.c **** 	uint32_t j5adcv5;   // jumpered to 5v: adc reading 5v input
+  70:Ourtasks/adc_idx_v_struct.c **** 	uint32_t zeroadcve; // connected, no current: HE adc reading
+  71:Ourtasks/adc_idx_v_struct.c **** 	uint32_t zeroadc5;  // connected, no current: 5v adc reading 
+  72:Ourtasks/adc_idx_v_struct.c **** 	uint32_t caladcve;  // connected, cal current: adc reading
+  73:Ourtasks/adc_idx_v_struct.c **** 	double   dcalcur;   // connected, cal current: current
+  74:Ourtasks/adc_idx_v_struct.c **** };
+  75:Ourtasks/adc_idx_v_struct.c **** */
+  76:Ourtasks/adc_idx_v_struct.c **** 	// Battery current: ADC1IDX_CURRENTTOTAL  1   // PA5 IN5  - Current sensor: total battery current
+  77:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur1.iir.k     = 10;    // Filter time constant
+  93              		.loc 1 77 0
+  94 0060 0A21     		movs	r1, #10
+  95 0062 1965     		str	r1, [r3, #80]
+ARM GAS  /tmp/ccmRHPqa.s 			page 4
+
+
+  78:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur1.iir.scale = 2;     // Filter integer scaling
+  96              		.loc 1 78 0
+  97 0064 0222     		movs	r2, #2
+  98 0066 5A65     		str	r2, [r3, #84]
+  79:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur1.zeroadcve = 27082; // connected, no current: HE adc reading
+  99              		.loc 1 79 0
+ 100 0068 46F6CA14 		movw	r4, #27082
+ 101 006c 1C66     		str	r4, [r3, #96]
+  80:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur1.zeroadc5  = 63969; // connected, no current: 5v adc reading 
+ 102              		.loc 1 80 0
+ 103 006e 4FF6E114 		movw	r4, #63969
+ 104 0072 5C66     		str	r4, [r3, #100]
+  81:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur1.caladcve  = 29880; // connected, cal current: adc reading
+ 105              		.loc 1 81 0
+ 106 0074 47F2B845 		movw	r5, #29880
+ 107 0078 9D66     		str	r5, [r3, #104]
+  82:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur1.dcalcur   = 16.03;  // connected, cal current: current * turns
+ 108              		.loc 1 82 0
+ 109 007a 1FA7     		adr	r7, .L3+24
+ 110 007c D7E90067 		ldrd	r6, [r7]
+ 111 0080 C3E91C67 		strd	r6, [r3, #112]
+  83:Ourtasks/adc_idx_v_struct.c **** 
+  84:Ourtasks/adc_idx_v_struct.c **** 	// Spare current: ADC1IDX_CURRENTMOTOR  2   // PA6 IN6  - Current sensor: motor
+  85:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur2.iir.k     = 10;    // Filter time constant
+ 112              		.loc 1 85 0
+ 113 0084 9967     		str	r1, [r3, #120]
+  86:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur2.iir.scale = 2;     // Filter integer scaling
+ 114              		.loc 1 86 0
+ 115 0086 DA67     		str	r2, [r3, #124]
+  87:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur2.zeroadcve = 27183; // connected, no current: HE adc reading
+ 116              		.loc 1 87 0
+ 117 0088 46F62F25 		movw	r5, #27183
+ 118 008c C3F88850 		str	r5, [r3, #136]
+  88:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur2.zeroadc5  = 63969; // connected, no current: 5v adc reading 
+ 119              		.loc 1 88 0
+ 120 0090 C3F88C40 		str	r4, [r3, #140]
+  89:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur2.caladcve  = 30186; // connected, cal current:
+ 121              		.loc 1 89 0
+ 122 0094 47F2EA54 		movw	r4, #30186
+ 123 0098 C3F89040 		str	r4, [r3, #144]
+  90:Ourtasks/adc_idx_v_struct.c **** 	p->cal_cur2.dcalcur   = 9.373; // connected, cal current: current * turns
+ 124              		.loc 1 90 0
+ 125 009c 18A5     		adr	r5, .L3+32
+ 126 009e D5E90045 		ldrd	r4, [r5]
+ 127 00a2 C3E92645 		strd	r4, [r3, #152]
+  91:Ourtasks/adc_idx_v_struct.c **** 
+  92:Ourtasks/adc_idx_v_struct.c **** /*  Reproduced for convenience 
+  93:Ourtasks/adc_idx_v_struct.c **** struct ADCCALABS
+  94:Ourtasks/adc_idx_v_struct.c **** {
+  95:Ourtasks/adc_idx_v_struct.c **** 	struct IIR_L_PARAM iir; // Filter: Time constant, integer scaling
+  96:Ourtasks/adc_idx_v_struct.c **** 	uint32_t adcvn;    // (ADC reading) vn 
+  97:Ourtasks/adc_idx_v_struct.c ****    double   dvn;      // (double) measured vn (volts)
+  98:Ourtasks/adc_idx_v_struct.c **** };
+  99:Ourtasks/adc_idx_v_struct.c **** */
+ 100:Ourtasks/adc_idx_v_struct.c **** 	// 5v supply: ADC1IDX_5VOLTSUPPLY   0   // PA0 IN0  - 5V sensor supply
+ 101:Ourtasks/adc_idx_v_struct.c **** 	p->cal_5v.iir.k     = 10;    // Filter time constant
+ 128              		.loc 1 101 0
+ARM GAS  /tmp/ccmRHPqa.s 			page 5
+
+
+ 129 00a6 C3F8A010 		str	r1, [r3, #160]
+ 102:Ourtasks/adc_idx_v_struct.c **** 	p->cal_5v.iir.scale = 2;     // Filter integer scaling
+ 130              		.loc 1 102 0
+ 131 00aa C3F8A420 		str	r2, [r3, #164]
+ 103:Ourtasks/adc_idx_v_struct.c **** 	p->cal_5v.adcvn     = 64480; // (ADC reading) v5
+ 132              		.loc 1 103 0
+ 133 00ae 4FF6E034 		movw	r4, #64480
+ 134 00b2 C3F8A840 		str	r4, [r3, #168]
+ 104:Ourtasks/adc_idx_v_struct.c **** 	p->cal_5v.dvn       = 5.03;  // (double) measured v5 (volts)
+ 135              		.loc 1 104 0
+ 136 00b6 14A5     		adr	r5, .L3+40
+ 137 00b8 D5E90045 		ldrd	r4, [r5]
+ 138 00bc C3E92C45 		strd	r4, [r3, #176]
+ 105:Ourtasks/adc_idx_v_struct.c **** 
+ 106:Ourtasks/adc_idx_v_struct.c **** 	// Raw 12v CAN bus supply: ADC1IDX_12VRAWSUPPLY  3   // PA7 IN7  - +12 Raw power to board
+ 107:Ourtasks/adc_idx_v_struct.c **** 	p->cal_12v.iir.k     = 10;    // Filter time constant
+ 139              		.loc 1 107 0
+ 140 00c0 C3F8B810 		str	r1, [r3, #184]
+ 108:Ourtasks/adc_idx_v_struct.c **** 	p->cal_12v.iir.scale = 2;     // Filter integer scaling
+ 141              		.loc 1 108 0
+ 142 00c4 C3F8BC20 		str	r2, [r3, #188]
+ 109:Ourtasks/adc_idx_v_struct.c **** 	p->cal_12v.adcvn     = 24023; // (4095*1502); // (ADC reading) v12 
+ 143              		.loc 1 109 0
+ 144 00c8 45F6D752 		movw	r2, #24023
+ 145 00cc C3F8C020 		str	r2, [r3, #192]
+ 110:Ourtasks/adc_idx_v_struct.c **** 	p->cal_12v.dvn       = 13.68;  // (double) measured v12 (volts)
+ 146              		.loc 1 110 0
+ 147 00d0 0FA5     		adr	r5, .L3+48
+ 148 00d2 D5E90045 		ldrd	r4, [r5]
+ 149 00d6 C3E93245 		strd	r4, [r3, #200]
+ 111:Ourtasks/adc_idx_v_struct.c **** 
+ 112:Ourtasks/adc_idx_v_struct.c **** 	return 0;	
+ 113:Ourtasks/adc_idx_v_struct.c **** }
+ 150              		.loc 1 113 0
+ 151 00da F0BC     		pop	{r4, r5, r6, r7}
+ 152              	.LCFI1:
+ 153              		.cfi_restore 7
+ 154              		.cfi_restore 6
+ 155              		.cfi_restore 5
+ 156              		.cfi_restore 4
+ 157              		.cfi_def_cfa_offset 0
+ 158 00dc 7047     		bx	lr
+ 159              	.L4:
+ 160 00de 00BF     		.align	3
+ 161              	.L3:
+ 162 00e0 52B81E85 		.word	-2061584302
+ 163 00e4 EB510A40 		.word	1074418155
+ 164 00e8 33333333 		.word	858993459
+ 165 00ec 33331140 		.word	1074869043
+ 166 00f0 66666666 		.word	1717986918
+ 167 00f4 6666F63F 		.word	1073112678
+ 168 00f8 48E17A14 		.word	343597384
+ 169 00fc AE073040 		.word	1076889518
+ 170 0100 E5D022DB 		.word	-618475291
+ 171 0104 F9BE2240 		.word	1076018937
+ 172 0108 1F85EB51 		.word	1374389535
+ 173 010c B81E1440 		.word	1075060408
+ARM GAS  /tmp/ccmRHPqa.s 			page 6
+
+
+ 174 0110 5C8FC2F5 		.word	-171798692
+ 175 0114 285C2B40 		.word	1076583464
+ 176 0118 00003940 		.word	1077477376
+ 177 011c 00002E40 		.word	1076756480
+ 178              		.cfi_endproc
+ 179              	.LFE69:
+ 181              		.text
+ 182              	.Letext0:
+ 183              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 184              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 185              		.file 4 "Ourtasks/iir_filter_lx.h"
+ 186              		.file 5 "Ourtasks/adc_idx_v_struct.h"
+ 187              		.file 6 "Drivers/CMSIS/Include/core_cm3.h"
+ARM GAS  /tmp/ccmRHPqa.s 			page 7
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 adc_idx_v_struct.c
+     /tmp/ccmRHPqa.s:20     .text.adc_idx_v_struct_hardcode_params:00000000 $t
+     /tmp/ccmRHPqa.s:25     .text.adc_idx_v_struct_hardcode_params:00000000 adc_idx_v_struct_hardcode_params
+     /tmp/ccmRHPqa.s:162    .text.adc_idx_v_struct_hardcode_params:000000e0 $d
+                     .debug_frame:00000010 $d
+
+NO UNDEFINED SYMBOLS

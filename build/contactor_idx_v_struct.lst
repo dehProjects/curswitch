@@ -1,0 +1,321 @@
+ARM GAS  /tmp/ccRaViBY.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"contactor_idx_v_struct.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.contactor_idx_v_struct_hardcode_params,"ax",%progbits
+  20              		.align	2
+  21              		.global	contactor_idx_v_struct_hardcode_params
+  22              		.thumb
+  23              		.thumb_func
+  25              	contactor_idx_v_struct_hardcode_params:
+  26              	.LFB69:
+  27              		.file 1 "Ourtasks/contactor_idx_v_struct_gsm.c"
+   1:Ourtasks/contactor_idx_v_struct_gsm.c **** /******************************************************************************
+   2:Ourtasks/contactor_idx_v_struct_gsm.c **** * File Name          : contactor_idx_v_struct.c
+   3:Ourtasks/contactor_idx_v_struct_gsm.c **** * Date First Issued  : 06/26/2019
+   4:Ourtasks/contactor_idx_v_struct_gsm.c **** * Board              :
+   5:Ourtasks/contactor_idx_v_struct_gsm.c **** * Description        : Load parameter struct 
+   6:Ourtasks/contactor_idx_v_struct_gsm.c **** *******************************************************************************/
+   7:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+   8:Ourtasks/contactor_idx_v_struct_gsm.c **** #include "contactor_idx_v_struct.h"
+   9:Ourtasks/contactor_idx_v_struct_gsm.c **** #include "SerialTaskReceive.h"
+  10:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  11:Ourtasks/contactor_idx_v_struct_gsm.c **** /* *************************************************************************
+  12:Ourtasks/contactor_idx_v_struct_gsm.c ****  * void contactor_idx_v_struct_hardcode_params(struct struct CONTACTORLC* p);
+  13:Ourtasks/contactor_idx_v_struct_gsm.c ****  * @brief	: Init struct from hard-coded parameters (rather than database params in highflash)
+  14:Ourtasks/contactor_idx_v_struct_gsm.c ****  * @return	: 0
+  15:Ourtasks/contactor_idx_v_struct_gsm.c ****  * *************************************************************************/
+  16:Ourtasks/contactor_idx_v_struct_gsm.c **** void contactor_idx_v_struct_hardcode_params(struct CONTACTORLC* p)
+  17:Ourtasks/contactor_idx_v_struct_gsm.c **** {
+  28              		.loc 1 17 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              		@ link register save eliminated.
+  33              	.LVL0:
+  34 0000 30B4     		push	{r4, r5}
+  35              	.LCFI0:
+  36              		.cfi_def_cfa_offset 8
+  37              		.cfi_offset 4, -8
+  38              		.cfi_offset 5, -4
+  18:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->size       = 47;
+  39              		.loc 1 18 0
+  40 0002 2F23     		movs	r3, #47
+ARM GAS  /tmp/ccRaViBY.s 			page 2
+
+
+  41 0004 0360     		str	r3, [r0]
+  19:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->crc        = 0;   // TBD
+  42              		.loc 1 19 0
+  43 0006 0023     		movs	r3, #0
+  44 0008 4360     		str	r3, [r0, #4]
+  20:Ourtasks/contactor_idx_v_struct_gsm.c ****         p->version    = 1;   // 
+  45              		.loc 1 20 0
+  46 000a 0123     		movs	r3, #1
+  47 000c 8360     		str	r3, [r0, #8]
+  21:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  22:Ourtasks/contactor_idx_v_struct_gsm.c **** 	/* Bits that define the hw configuration and features. */
+  23:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->hwconfig   = 0; // Default configuration
+  24:Ourtasks/contactor_idx_v_struct_gsm.c **** //	p->hwconfig  |= ONECONTACTOR;   // One contactor w Pre-chg relay
+  25:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->hwconfig  |= PWMCONTACTOR1;  // PWM coil #1
+  26:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->hwconfig  |= PWMCONTACTOR2;  // PWM coil #2
+  48              		.loc 1 26 0
+  49 000e 6023     		movs	r3, #96
+  50 0010 8361     		str	r3, [r0, #24]
+  27:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  28:Ourtasks/contactor_idx_v_struct_gsm.c **** 	/* Threshold for minimum battery voltage. */
+  29:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->fbattlow   = 30.0;  // Battery string low voltage (volts)
+  51              		.loc 1 29 0
+  52 0012 3D4B     		ldr	r3, .L3+8
+  53 0014 4362     		str	r3, [r0, #36]	@ float
+  30:Ourtasks/contactor_idx_v_struct_gsm.c **** 	// p->fbattlow   = 270.0;  // Battery string low voltage (volts)
+  31:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  32:Ourtasks/contactor_idx_v_struct_gsm.c **** /* Battery string current above which disconnecting is prevented. */
+  33:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->dcurrentdisconnect = 5.5; // Disconnect threshold (amps)
+  54              		.loc 1 33 0
+  55 0016 0022     		movs	r2, #0
+  56 0018 3C4B     		ldr	r3, .L3+12
+  57 001a C0E90A23 		strd	r2, [r0, #40]
+  34:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  35:Ourtasks/contactor_idx_v_struct_gsm.c **** 	/* Timings in milliseconds. Converted later to timer ticks. */
+  36:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->ka_t       = 1500; // Command/Keep-alive CAN msg timeout duration.
+  58              		.loc 1 36 0
+  59 001e 40F2DC53 		movw	r3, #1500
+  60 0022 C361     		str	r3, [r0, #28]
+  37:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->ddiffb4    = 3.0;  // hv3, or (hv1-hv2) voltage across pre-charge resistor before allowing clou
+  61              		.loc 1 37 0
+  62 0024 0022     		movs	r2, #0
+  63 0026 3A4B     		ldr	r3, .L3+16
+  64 0028 C0E90423 		strd	r2, [r0, #16]
+  38:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->fdiffafter = 3.0;  // allowable (hv1-hv2) voltage difference after closure (volts)
+  65              		.loc 1 38 0
+  66 002c 394B     		ldr	r3, .L3+20
+  67 002e 8364     		str	r3, [r0, #72]	@ float
+  39:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->prechgmin_t= 4000; // always allow this amount of time after closing contactor #1 (timeout dela
+  68              		.loc 1 39 0
+  69 0030 4FF47A63 		mov	r3, #4000
+  70 0034 0364     		str	r3, [r0, #64]
+  40:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->prechgmax_t= 6000; // allowable delay for diffafter to reach closure point (timeout delay ms)
+  71              		.loc 1 40 0
+  72 0036 41F27073 		movw	r3, #6000
+  73 003a 4364     		str	r3, [r0, #68]
+  41:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->close1_t   = 100;  // contactor #1 coil energize-closure (timeout delay ms)
+  74              		.loc 1 41 0
+ARM GAS  /tmp/ccRaViBY.s 			page 3
+
+
+  75 003c 6423     		movs	r3, #100
+  76 003e 0363     		str	r3, [r0, #48]
+  42:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->close2_t   = 100;  // contactor #2 coil energize-closure (timeout delay ms)
+  77              		.loc 1 42 0
+  78 0040 4363     		str	r3, [r0, #52]
+  43:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->open1_t    = 50;   // contactor #1 coil de-energize-open (timeout delay ms)
+  79              		.loc 1 43 0
+  80 0042 3223     		movs	r3, #50
+  81 0044 8363     		str	r3, [r0, #56]
+  44:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->open2_t    = 50;   // contactor #2 coil de-energize-open (timeout delay ms)
+  82              		.loc 1 44 0
+  83 0046 C363     		str	r3, [r0, #60]
+  45:Ourtasks/contactor_idx_v_struct_gsm.c **** 	//p->hv2stable_t= 30;   // hv 2 reading stable after closure (duration ms); possibly not used and 
+  46:Ourtasks/contactor_idx_v_struct_gsm.c **** 	//p->keepalive_t= 2555; // keep-alive timeout (timeout delay ms); possibly not used and could be r
+  47:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->hbct1_t    = 1000; // Heartbeat ct: ticks between sending msgs hv1:cur1
+  84              		.loc 1 47 0
+  85 0048 4FF47A73 		mov	r3, #1000
+  86 004c C365     		str	r3, [r0, #92]
+  48:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->hbct2_t    = 1000; // Heartbeat ct: ticks between sending msgs hv2:cur2
+  87              		.loc 1 48 0
+  88 004e 0366     		str	r3, [r0, #96]
+  49:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  50:Ourtasks/contactor_idx_v_struct_gsm.c **** /* PWM durations as percent (0.0- 100.0) */
+  51:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->fpwmpct1  = 100.0;  // Percent PWM after closure delay at 100% coil #1
+  89              		.loc 1 51 0
+  90 0050 314B     		ldr	r3, .L3+24
+  91 0052 0365     		str	r3, [r0, #80]	@ float
+  52:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->fpwmpct2  = 100.0;  // Percent PWM after closure delay at 100% coil #2
+  92              		.loc 1 52 0
+  93 0054 4365     		str	r3, [r0, #84]	@ float
+  53:Ourtasks/contactor_idx_v_struct_gsm.c **** /*	present system uses k to divide IIR difference into integrator. The IIR sample rate is 499 Hz. C
+  54:Ourtasks/contactor_idx_v_struct_gsm.c **** 	where the IIR sample is computed based on the processor and its setup.	*/ 
+  55:Ourtasks/contactor_idx_v_struct_gsm.c **** 	// Battery_minus-to-contactor #1
+  56:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV1].iir.k     = 3;
+  94              		.loc 1 56 0
+  95 0056 0323     		movs	r3, #3
+  96 0058 8366     		str	r3, [r0, #104]
+  57:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV1].iir.scale = 2;
+  97              		.loc 1 57 0
+  98 005a 0222     		movs	r2, #2
+  99 005c C266     		str	r2, [r0, #108]
+  58:Ourtasks/contactor_idx_v_struct_gsm.c ****  	p->calhv[IDXHV1].dvcal  = 159.7; // Applied voltage; update; GSM 200319
+ 100              		.loc 1 58 0
+ 101 005e 28A5     		adr	r5, .L3
+ 102 0060 D5E90045 		ldrd	r4, [r5]
+ 103 0064 C0E91C45 		strd	r4, [r0, #112]
+  59:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV1].adchv  = 19632; // 
+ 104              		.loc 1 59 0
+ 105 0068 44F6B041 		movw	r1, #19632
+ 106 006c 8167     		str	r1, [r0, #120]
+  60:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV1].offset =  3;    // ADC reading zero volts (Not actually calibrated)
+ 107              		.loc 1 60 0
+ 108 006e C367     		str	r3, [r0, #124]
+  61:Ourtasks/contactor_idx_v_struct_gsm.c ****         
+  62:Ourtasks/contactor_idx_v_struct_gsm.c **** 	// Battery_minus-to-contactor #1 DMOC_plus
+  63:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV2].iir.k     = 3;
+ 109              		.loc 1 63 0
+ARM GAS  /tmp/ccRaViBY.s 			page 4
+
+
+ 110 0070 C0F88030 		str	r3, [r0, #128]
+  64:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV2].iir.scale = 2;
+ 111              		.loc 1 64 0
+ 112 0074 C0F88420 		str	r2, [r0, #132]
+  65:Ourtasks/contactor_idx_v_struct_gsm.c ****  	p->calhv[IDXHV2].dvcal  = 159.7; // Applied voltage
+ 113              		.loc 1 65 0
+ 114 0078 C0E92245 		strd	r4, [r0, #136]
+  66:Ourtasks/contactor_idx_v_struct_gsm.c ****         p->calhv[IDXHV2].adchv  = 19500;  // ratiometric update; GSM 200319
+ 115              		.loc 1 66 0
+ 116 007c 44F62C41 		movw	r1, #19500
+ 117 0080 C0F89010 		str	r1, [r0, #144]
+  67:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV2].offset =  3;    // ADC reading zero volts (Not actually calibrated)
+ 118              		.loc 1 67 0
+ 119 0084 C0F89430 		str	r3, [r0, #148]
+  68:Ourtasks/contactor_idx_v_struct_gsm.c ****         
+  69:Ourtasks/contactor_idx_v_struct_gsm.c **** 	// Battery_minus-to-contactor #1 DMOC_minus
+  70:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV3].iir.k     = 3;
+ 120              		.loc 1 70 0
+ 121 0088 C0F89830 		str	r3, [r0, #152]
+  71:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV3].iir.scale = 2;
+ 122              		.loc 1 71 0
+ 123 008c C0F89C20 		str	r2, [r0, #156]
+  72:Ourtasks/contactor_idx_v_struct_gsm.c ****  	p->calhv[IDXHV3].dvcal  = 159.7; // Applied voltage
+ 124              		.loc 1 72 0
+ 125 0090 C0E92845 		strd	r4, [r0, #160]
+  73:Ourtasks/contactor_idx_v_struct_gsm.c ****         p->calhv[IDXHV3].adchv  = 19507;  // GSM update to set nominal gain 200319 (just using valu
+ 126              		.loc 1 73 0
+ 127 0094 44F63342 		movw	r2, #19507
+ 128 0098 C0F8A820 		str	r2, [r0, #168]
+  74:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->calhv[IDXHV3].offset =  3;    // ADC reading zero volts (Not actually calibrated)
+ 129              		.loc 1 74 0
+ 130 009c C0F8AC30 		str	r3, [r0, #172]
+  75:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  76:Ourtasks/contactor_idx_v_struct_gsm.c ****    //                 CANID_HEX      CANID_NAME       CAN_MSG_FMT     DESCRIPTION
+  77:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->cid_hb1        = 0xFF800000; // CANID_HB_CNTCTR1V  : FF_FF : Contactor1: Heartbeat: High voltag
+ 131              		.loc 1 77 0
+ 132 00a0 1E4B     		ldr	r3, .L3+28
+ 133 00a2 C0F8B030 		str	r3, [r0, #176]
+  78:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->cid_hb2        = 0xFF000000; // CANID_HB_CNTCTR1A  : FF_FF : Contactor1: Heartbeat: High voltag
+ 134              		.loc 1 78 0
+ 135 00a6 4FF07F43 		mov	r3, #-16777216
+ 136 00aa C0F8B430 		str	r3, [r0, #180]
+  79:Ourtasks/contactor_idx_v_struct_gsm.c ****         p->cid_msg1       = 0x50400000; // CANID_MSG_CNTCTR1V : FF_FF : Contactor1: poll response: 
+ 137              		.loc 1 79 0
+ 138 00ae 1C4B     		ldr	r3, .L3+32
+ 139 00b0 C0F8B830 		str	r3, [r0, #184]
+  80:Ourtasks/contactor_idx_v_struct_gsm.c ****         p->cid_msg2       = 0x50600000; // CANID_MSG_CNTCTR1A : FF_FF : Contactor1: poll response: 
+ 140              		.loc 1 80 0
+ 141 00b4 03F50013 		add	r3, r3, #2097152
+ 142 00b8 C0F8BC30 		str	r3, [r0, #188]
+  81:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->cid_cmd_r      = 0xE3600000; // CANID_CMD_CNTCTR1R : U8_VAR: Contactor1: R: Command response
+ 143              		.loc 1 81 0
+ 144 00bc 03F11343 		add	r3, r3, #-1828716544
+ 145 00c0 C0F8C030 		str	r3, [r0, #192]
+  82:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->cid_keepalive_r= 0xE3C00000; // CANID_CMD_CNTCTRKAR: U8_U8 : Contactor1: R KeepAlive response
+ 146              		.loc 1 82 0
+ 147 00c4 03F5C003 		add	r3, r3, #6291456
+ARM GAS  /tmp/ccRaViBY.s 			page 5
+
+
+ 148 00c8 C0F8C430 		str	r3, [r0, #196]
+  83:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  84:Ourtasks/contactor_idx_v_struct_gsm.c **** 	// List of CAN ID's for setting up hw filter for incoming msgs
+  85:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->cid_cmd_i        = 0xE360000C; // CANID_CMD_CNTCTR1I: U8_VAR: Contactor1: I: Command CANID inco
+ 149              		.loc 1 85 0
+ 150 00cc 154B     		ldr	r3, .L3+36
+ 151 00ce C0F8C830 		str	r3, [r0, #200]
+  86:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->cid_keepalive_i  = 0xE3800000; // CANID_CMD_CNTCTRKAI:U8',    Contactor1: I KeepAlive and conne
+ 152              		.loc 1 86 0
+ 153 00d2 154B     		ldr	r3, .L3+40
+ 154 00d4 C0F8CC30 		str	r3, [r0, #204]
+  87:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->cid_gps_sync     = 0x00400000; // CANID_HB_TIMESYNC:  U8 : GPS_1: U8 GPS time sync distribution
+ 155              		.loc 1 87 0
+ 156 00d8 4FF48003 		mov	r3, #4194304
+ 157 00dc C0F8D030 		str	r3, [r0, #208]
+  88:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->code_CAN_filt[0] = 0xFFFFFFFC; // CANID_DUMMY: UNDEF: Dummy ID: Lowest priority possible (Not U
+ 158              		.loc 1 88 0
+ 159 00e0 6FF00303 		mvn	r3, #3
+ 160 00e4 C0F8D430 		str	r3, [r0, #212]
+  89:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->code_CAN_filt[1] = 0xFFFFFFFC; // CANID_DUMMY: UNDEF: Dummy ID: Lowest priority possible (Not U
+ 161              		.loc 1 89 0
+ 162 00e8 C0F8D830 		str	r3, [r0, #216]
+  90:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->code_CAN_filt[2] = 0xFFFFFFFC; // CANID_DUMMY: UNDEF: Dummy ID: Lowest priority possible (Not U
+ 163              		.loc 1 90 0
+ 164 00ec C0F8DC30 		str	r3, [r0, #220]
+  91:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->code_CAN_filt[3] = 0xFFFFFFFC; // CANID_DUMMY: UNDEF: Dummy ID: Lowest priority possible (Not U
+ 165              		.loc 1 91 0
+ 166 00f0 C0F8E030 		str	r3, [r0, #224]
+  92:Ourtasks/contactor_idx_v_struct_gsm.c **** 	p->code_CAN_filt[4] = 0xFFFFFFFC; // CANID_DUMMY: UNDEF: Dummy ID: Lowest priority possible (Not U
+ 167              		.loc 1 92 0
+ 168 00f4 C0F8E430 		str	r3, [r0, #228]
+  93:Ourtasks/contactor_idx_v_struct_gsm.c **** 
+  94:Ourtasks/contactor_idx_v_struct_gsm.c **** 	return;
+  95:Ourtasks/contactor_idx_v_struct_gsm.c **** }
+ 169              		.loc 1 95 0
+ 170 00f8 30BC     		pop	{r4, r5}
+ 171              	.LCFI1:
+ 172              		.cfi_restore 5
+ 173              		.cfi_restore 4
+ 174              		.cfi_def_cfa_offset 0
+ 175 00fa 7047     		bx	lr
+ 176              	.L4:
+ 177 00fc AFF30080 		.align	3
+ 178              	.L3:
+ 179 0100 66666666 		.word	1717986918
+ 180 0104 66F66340 		.word	1080292966
+ 181 0108 0000F041 		.word	1106247680
+ 182 010c 00001640 		.word	1075183616
+ 183 0110 00000840 		.word	1074266112
+ 184 0114 00004040 		.word	1077936128
+ 185 0118 0000C842 		.word	1120403456
+ 186 011c 000080FF 		.word	-8388608
+ 187 0120 00004050 		.word	1346371584
+ 188 0124 0C0060E3 		.word	-480247796
+ 189 0128 000080E3 		.word	-478150656
+ 190              		.cfi_endproc
+ 191              	.LFE69:
+ARM GAS  /tmp/ccRaViBY.s 			page 6
+
+
+ 193              		.text
+ 194              	.Letext0:
+ 195              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 196              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 197              		.file 4 "Ourtasks/iir_filter_lx.h"
+ 198              		.file 5 "Ourtasks/contactor_idx_v_struct.h"
+ 199              		.file 6 "Drivers/CMSIS/Include/core_cm3.h"
+ARM GAS  /tmp/ccRaViBY.s 			page 7
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 contactor_idx_v_struct.c
+     /tmp/ccRaViBY.s:20     .text.contactor_idx_v_struct_hardcode_params:00000000 $t
+     /tmp/ccRaViBY.s:25     .text.contactor_idx_v_struct_hardcode_params:00000000 contactor_idx_v_struct_hardcode_params
+     /tmp/ccRaViBY.s:179    .text.contactor_idx_v_struct_hardcode_params:00000100 $d
+                     .debug_frame:00000010 $d
+
+NO UNDEFINED SYMBOLS

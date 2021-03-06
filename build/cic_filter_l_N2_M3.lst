@@ -1,0 +1,218 @@
+ARM GAS  /tmp/cc6nFRmH.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"cic_filter_l_N2_M3.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.cic_filter_l_N2_M3,"ax",%progbits
+  20              		.align	2
+  21              		.global	cic_filter_l_N2_M3
+  22              		.thumb
+  23              		.thumb_func
+  25              	cic_filter_l_N2_M3:
+  26              	.LFB0:
+  27              		.file 1 "Ourtasks/cic_filter_l_N2_M3.c"
+   1:Ourtasks/cic_filter_l_N2_M3.c **** /******************************************************************************
+   2:Ourtasks/cic_filter_l_N2_M3.c **** * File Name          : cic_filter_l_N2_M3.c
+   3:Ourtasks/cic_filter_l_N2_M3.c **** * Date First Issued  : 09/17/2011
+   4:Ourtasks/cic_filter_l_N2_M3.c **** * Board              : STM32F103VxT6_pod_mm
+   5:Ourtasks/cic_filter_l_N2_M3.c **** * Description        : General purpose cic (long) filter for N(delays)=2, M(sections)=3
+   6:Ourtasks/cic_filter_l_N2_M3.c **** *******************************************************************************/
+   7:Ourtasks/cic_filter_l_N2_M3.c **** /*
+   8:Ourtasks/cic_filter_l_N2_M3.c **** Implement a three Cascaded Integrator Comb (CIC) filter.  (See _Digital Signal Processing in Commun
+   9:Ourtasks/cic_filter_l_N2_M3.c ****  Marvin E. Frerking, (1994; Kluwer Academic Publishing), page 200, Figure 5.33 for a two stage CIC 
+  10:Ourtasks/cic_filter_l_N2_M3.c **** 
+  11:Ourtasks/cic_filter_l_N2_M3.c **** This filter length is R*N, where R is the down-sampling as set in the struct and N = 2.
+  12:Ourtasks/cic_filter_l_N2_M3.c **** 
+  13:Ourtasks/cic_filter_l_N2_M3.c **** The number of bits required in each integrator requires three times (M=3) the number of bits
+  14:Ourtasks/cic_filter_l_N2_M3.c **** in the downsampling.  E.g. with a down-sampling of 32 (5 bits), each integrator requires 5 more bit
+  15:Ourtasks/cic_filter_l_N2_M3.c **** than the largest data.  Three cascaded integrators add 15 bits.  If the largest input size is 24 bi
+  16:Ourtasks/cic_filter_l_N2_M3.c **** (e.g. the AD7799 register), 39 bits are required, therefore 'long long' (64 bit) arithmetic is need
+  17:Ourtasks/cic_filter_l_N2_M3.c ****   
+  18:Ourtasks/cic_filter_l_N2_M3.c **** The scale factor is (R*N)^M, where R is the down-sampling ratio (32 in this case), N is the number 
+  19:Ourtasks/cic_filter_l_N2_M3.c **** in the differentiators (2 in this case) and M is the number of cascaded sections (3 in this case); 
+  20:Ourtasks/cic_filter_l_N2_M3.c **** hence (32*2)^3 = 2^18. (See Frerking p 202.)  If N is not a power of 2 then the scale factor will n
+  21:Ourtasks/cic_filter_l_N2_M3.c **** power of two and simple shifting of the output data will not de-scale the filter (if exact de-scali
+  22:Ourtasks/cic_filter_l_N2_M3.c **** important, which in this application it is not).
+  23:Ourtasks/cic_filter_l_N2_M3.c **** 
+  24:Ourtasks/cic_filter_l_N2_M3.c **** Since effective bits are added by the low pass filtering, adjustment of the output by
+  25:Ourtasks/cic_filter_l_N2_M3.c **** could drop some useful bits.
+  26:Ourtasks/cic_filter_l_N2_M3.c **** 
+  27:Ourtasks/cic_filter_l_N2_M3.c **** It is absolutely essential that the integrators be intialized to zero.  There is nothing
+  28:Ourtasks/cic_filter_l_N2_M3.c **** in the math to correct for a non-zero start up, and the error accumulates.
+  29:Ourtasks/cic_filter_l_N2_M3.c **** 
+  30:Ourtasks/cic_filter_l_N2_M3.c **** The three cascaded sections give an impulse response that is parabolic and therefore quite
+  31:Ourtasks/cic_filter_l_N2_M3.c **** close to Gaussian, which minimizes ringing.
+ARM GAS  /tmp/cc6nFRmH.s 			page 2
+
+
+  32:Ourtasks/cic_filter_l_N2_M3.c **** 
+  33:Ourtasks/cic_filter_l_N2_M3.c **** NOTE: 
+  34:Ourtasks/cic_filter_l_N2_M3.c **** 
+  35:Ourtasks/cic_filter_l_N2_M3.c **** 1) The struct must be initialized with the downsampling count, and discard number (if any
+  36:Ourtasks/cic_filter_l_N2_M3.c **** initial readings are to be discarded).
+  37:Ourtasks/cic_filter_l_N2_M3.c **** 
+  38:Ourtasks/cic_filter_l_N2_M3.c **** 2) The new reading to go into the filter is added to the struct before calling the routine,
+  39:Ourtasks/cic_filter_l_N2_M3.c **** 
+  40:Ourtasks/cic_filter_l_N2_M3.c **** 3) The 'usFlag' is incremented when the filter has a new output.
+  41:Ourtasks/cic_filter_l_N2_M3.c **** 
+  42:Ourtasks/cic_filter_l_N2_M3.c **** */
+  43:Ourtasks/cic_filter_l_N2_M3.c **** 
+  44:Ourtasks/cic_filter_l_N2_M3.c **** #include "cic_filter_l_N2_M3.h"
+  45:Ourtasks/cic_filter_l_N2_M3.c **** 
+  46:Ourtasks/cic_filter_l_N2_M3.c **** 
+  47:Ourtasks/cic_filter_l_N2_M3.c **** /******************************************************************************
+  48:Ourtasks/cic_filter_l_N2_M3.c ****  * unsigned short cic_filter_l_N2_M3 (struct CICLN2M3 *p, uint32_t new);
+  49:Ourtasks/cic_filter_l_N2_M3.c ****  * @brief	: Update one filtering for one adc channel
+  50:Ourtasks/cic_filter_l_N2_M3.c ****  * @param	: Pointer to struct with all the stuff
+  51:Ourtasks/cic_filter_l_N2_M3.c ****  * @param	: new = new value to added to filter
+  52:Ourtasks/cic_filter_l_N2_M3.c ****  * @return	: 0 = filtered output not ready; 1 = new filtered output ready
+  53:Ourtasks/cic_filter_l_N2_M3.c **** *******************************************************************************/
+  54:Ourtasks/cic_filter_l_N2_M3.c **** unsigned short cic_filter_l_N2_M3 (struct CICLN2M3 *p, uint32_t new)
+  55:Ourtasks/cic_filter_l_N2_M3.c **** {
+  28              		.loc 1 55 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              		@ link register save eliminated.
+  33              	.LVL0:
+  56:Ourtasks/cic_filter_l_N2_M3.c **** 
+  57:Ourtasks/cic_filter_l_N2_M3.c **** long	lX1,lX2;	// Intermediate differentiator value
+  58:Ourtasks/cic_filter_l_N2_M3.c **** 
+  59:Ourtasks/cic_filter_l_N2_M3.c **** 	/* Three stages of integration */
+  60:Ourtasks/cic_filter_l_N2_M3.c **** 	p->lIntegral[0] += new;		// Incoming data is 32 bits; add to 32 bit accumulator
+  34              		.loc 1 60 0
+  35 0000 8368     		ldr	r3, [r0, #8]
+  36 0002 1944     		add	r1, r1, r3
+  37              	.LVL1:
+  38 0004 8160     		str	r1, [r0, #8]
+  61:Ourtasks/cic_filter_l_N2_M3.c **** 	p->lIntegral[1] += p->lIntegral[0];	// 1st stage feeds 2nd stage
+  39              		.loc 1 61 0
+  40 0006 C368     		ldr	r3, [r0, #12]
+  41 0008 1944     		add	r1, r1, r3
+  42 000a C160     		str	r1, [r0, #12]
+  62:Ourtasks/cic_filter_l_N2_M3.c **** 	p->lIntegral[2] += p->lIntegral[1];	// 2nd stage feeds 3rd stage
+  43              		.loc 1 62 0
+  44 000c 0369     		ldr	r3, [r0, #16]
+  45 000e 1944     		add	r1, r1, r3
+  46 0010 0161     		str	r1, [r0, #16]
+  63:Ourtasks/cic_filter_l_N2_M3.c **** 	
+  64:Ourtasks/cic_filter_l_N2_M3.c **** 	/* Decimate (down-sample) */
+  65:Ourtasks/cic_filter_l_N2_M3.c **** 	p->usDecimateCt += 1;			// Decimation count
+  47              		.loc 1 65 0
+  48 0012 038E     		ldrh	r3, [r0, #48]
+  49 0014 0133     		adds	r3, r3, #1
+  50 0016 9BB2     		uxth	r3, r3
+ARM GAS  /tmp/cc6nFRmH.s 			page 3
+
+
+  51 0018 0386     		strh	r3, [r0, #48]	@ movhi
+  66:Ourtasks/cic_filter_l_N2_M3.c **** 	if (p->usDecimateCt >= p->usDecimateNum) 	// Time to decimate?
+  52              		.loc 1 66 0
+  53 001a 0288     		ldrh	r2, [r0]
+  54 001c 9342     		cmp	r3, r2
+  55 001e 16D3     		bcc	.L3
+  67:Ourtasks/cic_filter_l_N2_M3.c **** 	{ // Here, yes.  Do three stages of differentiation of the down sampled data
+  68:Ourtasks/cic_filter_l_N2_M3.c **** 		p->usDecimateCt = 0;		// Reset decimation counter
+  56              		.loc 1 68 0
+  57 0020 0023     		movs	r3, #0
+  58 0022 0386     		strh	r3, [r0, #48]	@ movhi
+  69:Ourtasks/cic_filter_l_N2_M3.c **** 		lX1	          = p->lIntegral[2] - p->lDiff[0][1]; // 3rd stage integral minus 3rd stage value del
+  59              		.loc 1 69 0
+  60 0024 8269     		ldr	r2, [r0, #24]
+  61 0026 8A1A     		subs	r2, r1, r2
+  62              	.LVL2:
+  70:Ourtasks/cic_filter_l_N2_M3.c **** 		p->lDiff[0][1] = p->lDiff[0][0];	// Move the samples down one step
+  63              		.loc 1 70 0
+  64 0028 4369     		ldr	r3, [r0, #20]
+  65 002a 8361     		str	r3, [r0, #24]
+  71:Ourtasks/cic_filter_l_N2_M3.c **** 		p->lDiff[0][0] = p->lIntegral[2];	// Input goes into 1st delay of the two delays
+  66              		.loc 1 71 0
+  67 002c 4161     		str	r1, [r0, #20]
+  72:Ourtasks/cic_filter_l_N2_M3.c **** 
+  73:Ourtasks/cic_filter_l_N2_M3.c **** 		/* Repeat differentiator for 2nd stage */
+  74:Ourtasks/cic_filter_l_N2_M3.c **** 		lX2               = lX1 - p->lDiff[1][1]; // 1st stage diff- value delayed by 3
+  68              		.loc 1 74 0
+  69 002e 036A     		ldr	r3, [r0, #32]
+  70 0030 D31A     		subs	r3, r2, r3
+  71              	.LVL3:
+  75:Ourtasks/cic_filter_l_N2_M3.c **** 		p->lDiff[1][1] = p->lDiff[1][0];
+  72              		.loc 1 75 0
+  73 0032 C169     		ldr	r1, [r0, #28]
+  74 0034 0162     		str	r1, [r0, #32]
+  76:Ourtasks/cic_filter_l_N2_M3.c **** 		p->lDiff[1][0] = lX1;
+  75              		.loc 1 76 0
+  76 0036 C261     		str	r2, [r0, #28]
+  77:Ourtasks/cic_filter_l_N2_M3.c **** 
+  78:Ourtasks/cic_filter_l_N2_M3.c **** 		/* Repeat for 3rd stage.  Output is the filtered/decimated output */
+  79:Ourtasks/cic_filter_l_N2_M3.c **** 		p->lout        = lX2  - p->lDiff[2][1];
+  77              		.loc 1 79 0
+  78 0038 826A     		ldr	r2, [r0, #40]
+  79              	.LVL4:
+  80 003a 9A1A     		subs	r2, r3, r2
+  81 003c C262     		str	r2, [r0, #44]
+  80:Ourtasks/cic_filter_l_N2_M3.c **** 		p->lDiff[2][1] = p->lDiff[2][0];
+  82              		.loc 1 80 0
+  83 003e 426A     		ldr	r2, [r0, #36]
+  84 0040 8262     		str	r2, [r0, #40]
+  81:Ourtasks/cic_filter_l_N2_M3.c **** 		p->lDiff[2][0] = lX2;
+  85              		.loc 1 81 0
+  86 0042 4362     		str	r3, [r0, #36]
+  82:Ourtasks/cic_filter_l_N2_M3.c **** 
+  83:Ourtasks/cic_filter_l_N2_M3.c **** 		p->usFlag += 1;	// Flag mainline that there is new output data.
+  87              		.loc 1 83 0
+  88 0044 438E     		ldrh	r3, [r0, #50]
+  89              	.LVL5:
+ARM GAS  /tmp/cc6nFRmH.s 			page 4
+
+
+  90 0046 0133     		adds	r3, r3, #1
+  91 0048 4386     		strh	r3, [r0, #50]	@ movhi
+  84:Ourtasks/cic_filter_l_N2_M3.c **** 		return 1;
+  92              		.loc 1 84 0
+  93 004a 0120     		movs	r0, #1
+  94              	.LVL6:
+  95 004c 7047     		bx	lr
+  96              	.LVL7:
+  97              	.L3:
+  85:Ourtasks/cic_filter_l_N2_M3.c **** 
+  86:Ourtasks/cic_filter_l_N2_M3.c **** 	}	
+  87:Ourtasks/cic_filter_l_N2_M3.c **** 	return 0;
+  98              		.loc 1 87 0
+  99 004e 0020     		movs	r0, #0
+ 100              	.LVL8:
+  88:Ourtasks/cic_filter_l_N2_M3.c **** }
+ 101              		.loc 1 88 0
+ 102 0050 7047     		bx	lr
+ 103              		.cfi_endproc
+ 104              	.LFE0:
+ 106 0052 00BF     		.text
+ 107              	.Letext0:
+ 108              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 109              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 110              		.file 4 "Ourtasks/cic_filter_l_N2_M3.h"
+ARM GAS  /tmp/cc6nFRmH.s 			page 5
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 cic_filter_l_N2_M3.c
+     /tmp/cc6nFRmH.s:20     .text.cic_filter_l_N2_M3:00000000 $t
+     /tmp/cc6nFRmH.s:25     .text.cic_filter_l_N2_M3:00000000 cic_filter_l_N2_M3
+                     .debug_frame:00000010 $d
+
+NO UNDEFINED SYMBOLS

@@ -1,0 +1,300 @@
+ARM GAS  /tmp/ccmGsz9x.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"iir_filter_lx.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.iir_filter_lx_init,"ax",%progbits
+  20              		.align	2
+  21              		.thumb
+  22              		.thumb_func
+  24              	iir_filter_lx_init:
+  25              	.LFB0:
+  26              		.file 1 "Ourtasks/iir_filter_lx.c"
+   1:Ourtasks/iir_filter_lx.c **** /******************************************************************************
+   2:Ourtasks/iir_filter_lx.c **** * File Name          : iir_filter_lx.c
+   3:Ourtasks/iir_filter_lx.c **** * Date First Issued  : 05/18/2016
+   4:Ourtasks/iir_filter_lx.c **** * Board              : --
+   5:Ourtasks/iir_filter_lx.c **** * Description        : Single pole IIR filter using int32_t
+   6:Ourtasks/iir_filter_lx.c **** *******************************************************************************/
+   7:Ourtasks/iir_filter_lx.c **** /*
+   8:Ourtasks/iir_filter_lx.c **** Simple single pole IIR stage.
+   9:Ourtasks/iir_filter_lx.c **** 
+  10:Ourtasks/iir_filter_lx.c **** For pass-thru, where the output = input, i.e no filtering, set k=1.
+  11:Ourtasks/iir_filter_lx.c **** 
+  12:Ourtasks/iir_filter_lx.c **** */
+  13:Ourtasks/iir_filter_lx.c **** 
+  14:Ourtasks/iir_filter_lx.c **** #include "iir_filter_lx.h"
+  15:Ourtasks/iir_filter_lx.c **** /******************************************************************************
+  16:Ourtasks/iir_filter_lx.c ****  * static void iir_filter_lx_init(struct IIRFILTERL* pfil, uint32_t* pval);
+  17:Ourtasks/iir_filter_lx.c ****  * @brief	: Set initial value
+  18:Ourtasks/iir_filter_lx.c ****  * @param	: pfil = pointer to struct with filter stuff
+  19:Ourtasks/iir_filter_lx.c ****  * @param	: pval = pointer to reading
+  20:Ourtasks/iir_filter_lx.c **** *******************************************************************************/
+  21:Ourtasks/iir_filter_lx.c **** static void iir_filter_lx_init(struct IIRFILTERL* pfil, uint16_t* pval)
+  22:Ourtasks/iir_filter_lx.c **** {
+  27              		.loc 1 22 0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		@ link register save eliminated.
+  32              	.LVL0:
+  23:Ourtasks/iir_filter_lx.c **** 	/* Crazy results if scale or k is bogus. */
+  24:Ourtasks/iir_filter_lx.c **** 	if (pfil->pprm->scale <= 0) pfil->pprm->scale = 1;
+  33              		.loc 1 24 0
+  34 0000 0369     		ldr	r3, [r0, #16]
+ARM GAS  /tmp/ccmGsz9x.s 			page 2
+
+
+  35 0002 5A68     		ldr	r2, [r3, #4]
+  36 0004 002A     		cmp	r2, #0
+  37 0006 01DC     		bgt	.L2
+  38              		.loc 1 24 0 is_stmt 0 discriminator 1
+  39 0008 0122     		movs	r2, #1
+  40 000a 5A60     		str	r2, [r3, #4]
+  41              	.L2:
+  25:Ourtasks/iir_filter_lx.c **** 	if (pfil->pprm->k <= 0) pfil->pprm->k = 1;
+  42              		.loc 1 25 0 is_stmt 1
+  43 000c 0369     		ldr	r3, [r0, #16]
+  44 000e 1A68     		ldr	r2, [r3]
+  45 0010 002A     		cmp	r2, #0
+  46 0012 01DC     		bgt	.L3
+  47              		.loc 1 25 0 is_stmt 0 discriminator 1
+  48 0014 0122     		movs	r2, #1
+  49 0016 1A60     		str	r2, [r3]
+  50              	.L3:
+  26:Ourtasks/iir_filter_lx.c **** 
+  27:Ourtasks/iir_filter_lx.c **** 	/* Set initial value with the first reading. */
+  28:Ourtasks/iir_filter_lx.c **** 	pfil->z = (*pval) * (pfil->pprm->scale);
+  51              		.loc 1 28 0 is_stmt 1
+  52 0018 0A88     		ldrh	r2, [r1]
+  53 001a 0369     		ldr	r3, [r0, #16]
+  54 001c 5B68     		ldr	r3, [r3, #4]
+  55 001e 03FB02F3 		mul	r3, r3, r2
+  56 0022 8360     		str	r3, [r0, #8]
+  57 0024 7047     		bx	lr
+  58              		.cfi_endproc
+  59              	.LFE0:
+  61 0026 00BF     		.section	.text.iir_filter_lx_do,"ax",%progbits
+  62              		.align	2
+  63              		.global	iir_filter_lx_do
+  64              		.thumb
+  65              		.thumb_func
+  67              	iir_filter_lx_do:
+  68              	.LFB1:
+  29:Ourtasks/iir_filter_lx.c **** 	return;
+  30:Ourtasks/iir_filter_lx.c **** }
+  31:Ourtasks/iir_filter_lx.c **** /******************************************************************************
+  32:Ourtasks/iir_filter_lx.c ****  * int32_t iir_filter_lx_do(struct IIRFILTERL* pfil, uint16_t* pval);
+  33:Ourtasks/iir_filter_lx.c ****  * @brief	: Pass an input value through the filter.
+  34:Ourtasks/iir_filter_lx.c ****  * @param	: pfil = pointer to struct with filter stuff
+  35:Ourtasks/iir_filter_lx.c ****  * @param	: pval = pointer to reading
+  36:Ourtasks/iir_filter_lx.c ****  * @return	: latest filtered value
+  37:Ourtasks/iir_filter_lx.c **** *******************************************************************************/
+  38:Ourtasks/iir_filter_lx.c **** /*
+  39:Ourtasks/iir_filter_lx.c **** NOTE: It is expected that pfil-z has been initialized.
+  40:Ourtasks/iir_filter_lx.c **** */
+  41:Ourtasks/iir_filter_lx.c **** int32_t iir_filter_lx_do(struct IIRFILTERL* pfil, uint16_t* pval)
+  42:Ourtasks/iir_filter_lx.c **** {
+  69              		.loc 1 42 0
+  70              		.cfi_startproc
+  71              		@ args = 0, pretend = 0, frame = 0
+  72              		@ frame_needed = 0, uses_anonymous_args = 0
+  73              	.LVL1:
+  74 0000 38B5     		push	{r3, r4, r5, lr}
+  75              	.LCFI0:
+ARM GAS  /tmp/ccmGsz9x.s 			page 3
+
+
+  76              		.cfi_def_cfa_offset 16
+  77              		.cfi_offset 3, -16
+  78              		.cfi_offset 4, -12
+  79              		.cfi_offset 5, -8
+  80              		.cfi_offset 14, -4
+  81 0002 0446     		mov	r4, r0
+  82 0004 0D46     		mov	r5, r1
+  43:Ourtasks/iir_filter_lx.c **** 	/* First time with reading. */
+  44:Ourtasks/iir_filter_lx.c **** 	if (pfil->sw == 0)
+  83              		.loc 1 44 0
+  84 0006 037D     		ldrb	r3, [r0, #20]	@ zero_extendqisi2
+  85 0008 1BB9     		cbnz	r3, .L5
+  45:Ourtasks/iir_filter_lx.c **** 	{
+  46:Ourtasks/iir_filter_lx.c **** 		pfil->sw = 1;
+  86              		.loc 1 46 0
+  87 000a 0123     		movs	r3, #1
+  88 000c 0375     		strb	r3, [r0, #20]
+  47:Ourtasks/iir_filter_lx.c **** 		iir_filter_lx_init(pfil, pval);
+  89              		.loc 1 47 0
+  90 000e FFF7FEFF 		bl	iir_filter_lx_init
+  91              	.LVL2:
+  92              	.L5:
+  48:Ourtasks/iir_filter_lx.c **** 	}
+  49:Ourtasks/iir_filter_lx.c **** 
+  50:Ourtasks/iir_filter_lx.c **** 	/* Filter computation */
+  51:Ourtasks/iir_filter_lx.c ****    pfil->z = pfil->z + ( (*pval) * (pfil->pprm->scale) - pfil->z) / (pfil->pprm->k); 
+  93              		.loc 1 51 0
+  94 0012 2A88     		ldrh	r2, [r5]
+  95 0014 2169     		ldr	r1, [r4, #16]
+  96 0016 4B68     		ldr	r3, [r1, #4]
+  97 0018 03FB02F3 		mul	r3, r3, r2
+  98 001c A568     		ldr	r5, [r4, #8]
+  99              	.LVL3:
+ 100 001e 5A1B     		subs	r2, r3, r5
+ 101 0020 0B68     		ldr	r3, [r1]
+ 102 0022 92FBF3F3 		sdiv	r3, r2, r3
+ 103 0026 2B44     		add	r3, r3, r5
+ 104 0028 A360     		str	r3, [r4, #8]
+  52:Ourtasks/iir_filter_lx.c **** 	return (pfil->z / pfil->pprm->scale);
+ 105              		.loc 1 52 0
+ 106 002a 4868     		ldr	r0, [r1, #4]
+  53:Ourtasks/iir_filter_lx.c **** }
+ 107              		.loc 1 53 0
+ 108 002c 93FBF0F0 		sdiv	r0, r3, r0
+ 109 0030 38BD     		pop	{r3, r4, r5, pc}
+ 110              		.cfi_endproc
+ 111              	.LFE1:
+ 113              		.global	__aeabi_i2d
+ 114 0032 00BF     		.section	.text.iir_filter_lx_double,"ax",%progbits
+ 115              		.align	2
+ 116              		.global	iir_filter_lx_double
+ 117              		.thumb
+ 118              		.thumb_func
+ 120              	iir_filter_lx_double:
+ 121              	.LFB2:
+  54:Ourtasks/iir_filter_lx.c **** /******************************************************************************
+  55:Ourtasks/iir_filter_lx.c ****  * void iir_filter_lx_double(struct IIRFILTERL* pfil);
+ARM GAS  /tmp/ccmGsz9x.s 			page 4
+
+
+  56:Ourtasks/iir_filter_lx.c ****  * @brief	: Convert unscaled int to scaled double
+  57:Ourtasks/iir_filter_lx.c ****  * @param	: pfil = pointer to struct with filter stuff
+  58:Ourtasks/iir_filter_lx.c **** *******************************************************************************/
+  59:Ourtasks/iir_filter_lx.c **** void iir_filter_lx_double(struct IIRFILTERL* pfil)
+  60:Ourtasks/iir_filter_lx.c **** {
+ 122              		.loc 1 60 0
+ 123              		.cfi_startproc
+ 124              		@ args = 0, pretend = 0, frame = 0
+ 125              		@ frame_needed = 0, uses_anonymous_args = 0
+ 126              	.LVL4:
+ 127 0000 38B5     		push	{r3, r4, r5, lr}
+ 128              	.LCFI1:
+ 129              		.cfi_def_cfa_offset 16
+ 130              		.cfi_offset 3, -16
+ 131              		.cfi_offset 4, -12
+ 132              		.cfi_offset 5, -8
+ 133              		.cfi_offset 14, -4
+ 134 0002 0446     		mov	r4, r0
+  61:Ourtasks/iir_filter_lx.c **** 	pfil->d_out = pfil->z;	// int to double
+ 135              		.loc 1 61 0
+ 136 0004 8568     		ldr	r5, [r0, #8]
+ 137 0006 2846     		mov	r0, r5
+ 138              	.LVL5:
+ 139 0008 FFF7FEFF 		bl	__aeabi_i2d
+ 140              	.LVL6:
+ 141 000c C4E90001 		strd	r0, [r4]
+  62:Ourtasks/iir_filter_lx.c **** 	pfil->d_out = pfil->z/(pfil->pprm->scale); // Scale
+ 142              		.loc 1 62 0
+ 143 0010 2369     		ldr	r3, [r4, #16]
+ 144 0012 5868     		ldr	r0, [r3, #4]
+ 145 0014 95FBF0F0 		sdiv	r0, r5, r0
+ 146 0018 FFF7FEFF 		bl	__aeabi_i2d
+ 147              	.LVL7:
+ 148 001c C4E90001 		strd	r0, [r4]
+ 149 0020 38BD     		pop	{r3, r4, r5, pc}
+ 150              		.cfi_endproc
+ 151              	.LFE2:
+ 153              		.global	__aeabi_i2f
+ 154              		.global	__aeabi_fdiv
+ 155 0022 00BF     		.section	.text.iir_filter_lx_float,"ax",%progbits
+ 156              		.align	2
+ 157              		.global	iir_filter_lx_float
+ 158              		.thumb
+ 159              		.thumb_func
+ 161              	iir_filter_lx_float:
+ 162              	.LFB3:
+  63:Ourtasks/iir_filter_lx.c **** 	return;
+  64:Ourtasks/iir_filter_lx.c **** }
+  65:Ourtasks/iir_filter_lx.c **** /******************************************************************************
+  66:Ourtasks/iir_filter_lx.c ****  * void iir_filter_lx_float(struct IIRFILTERL* pfil);
+  67:Ourtasks/iir_filter_lx.c ****  * @brief	: Convert unscaled int to scaled float
+  68:Ourtasks/iir_filter_lx.c ****  * @param	: pfil = pointer to struct with filter stuff
+  69:Ourtasks/iir_filter_lx.c **** *******************************************************************************/
+  70:Ourtasks/iir_filter_lx.c **** void iir_filter_lx_float(struct IIRFILTERL* pfil)
+  71:Ourtasks/iir_filter_lx.c **** {
+ 163              		.loc 1 71 0
+ 164              		.cfi_startproc
+ARM GAS  /tmp/ccmGsz9x.s 			page 5
+
+
+ 165              		@ args = 0, pretend = 0, frame = 0
+ 166              		@ frame_needed = 0, uses_anonymous_args = 0
+ 167              	.LVL8:
+ 168 0000 38B5     		push	{r3, r4, r5, lr}
+ 169              	.LCFI2:
+ 170              		.cfi_def_cfa_offset 16
+ 171              		.cfi_offset 3, -16
+ 172              		.cfi_offset 4, -12
+ 173              		.cfi_offset 5, -8
+ 174              		.cfi_offset 14, -4
+ 175 0002 0446     		mov	r4, r0
+  72:Ourtasks/iir_filter_lx.c **** 	pfil->f_out = pfil->z;	// int to float
+ 176              		.loc 1 72 0
+ 177 0004 8068     		ldr	r0, [r0, #8]
+ 178              	.LVL9:
+ 179 0006 FFF7FEFF 		bl	__aeabi_i2f
+ 180              	.LVL10:
+ 181 000a 0546     		mov	r5, r0
+ 182 000c E060     		str	r0, [r4, #12]	@ float
+  73:Ourtasks/iir_filter_lx.c **** 	pfil->f_out = pfil->f_out/(pfil->pprm->scale); // Scale
+ 183              		.loc 1 73 0
+ 184 000e 2369     		ldr	r3, [r4, #16]
+ 185 0010 5868     		ldr	r0, [r3, #4]
+ 186 0012 FFF7FEFF 		bl	__aeabi_i2f
+ 187              	.LVL11:
+ 188 0016 0146     		mov	r1, r0
+ 189 0018 2846     		mov	r0, r5
+ 190 001a FFF7FEFF 		bl	__aeabi_fdiv
+ 191              	.LVL12:
+ 192 001e E060     		str	r0, [r4, #12]	@ float
+ 193 0020 38BD     		pop	{r3, r4, r5, pc}
+ 194              		.cfi_endproc
+ 195              	.LFE3:
+ 197 0022 00BF     		.text
+ 198              	.Letext0:
+ 199              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 200              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 201              		.file 4 "Ourtasks/iir_filter_lx.h"
+ARM GAS  /tmp/ccmGsz9x.s 			page 6
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 iir_filter_lx.c
+     /tmp/ccmGsz9x.s:20     .text.iir_filter_lx_init:00000000 $t
+     /tmp/ccmGsz9x.s:24     .text.iir_filter_lx_init:00000000 iir_filter_lx_init
+     /tmp/ccmGsz9x.s:62     .text.iir_filter_lx_do:00000000 $t
+     /tmp/ccmGsz9x.s:67     .text.iir_filter_lx_do:00000000 iir_filter_lx_do
+     /tmp/ccmGsz9x.s:115    .text.iir_filter_lx_double:00000000 $t
+     /tmp/ccmGsz9x.s:120    .text.iir_filter_lx_double:00000000 iir_filter_lx_double
+     /tmp/ccmGsz9x.s:156    .text.iir_filter_lx_float:00000000 $t
+     /tmp/ccmGsz9x.s:161    .text.iir_filter_lx_float:00000000 iir_filter_lx_float
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+__aeabi_i2d
+__aeabi_i2f
+__aeabi_fdiv

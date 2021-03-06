@@ -1,0 +1,604 @@
+ARM GAS  /tmp/ccNqWbpb.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"CanTask.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.StartCanTxTask,"ax",%progbits
+  20              		.align	2
+  21              		.global	StartCanTxTask
+  22              		.thumb
+  23              		.thumb_func
+  25              	StartCanTxTask:
+  26              	.LFB71:
+  27              		.file 1 "Ourwares/CanTask.c"
+   1:Ourwares/CanTask.c **** /******************************************************************************
+   2:Ourwares/CanTask.c **** * File Name          : CanTask.c
+   3:Ourwares/CanTask.c **** * Date First Issued  : 01/01/2019
+   4:Ourwares/CanTask.c **** * Description        : CAN interface to FreeRTOS/ST HAL
+   5:Ourwares/CanTask.c **** *******************************************************************************/
+   6:Ourwares/CanTask.c **** 
+   7:Ourwares/CanTask.c **** #include "stm32f1xx_hal.h"
+   8:Ourwares/CanTask.c **** #include "stm32f1xx_hal_can.h"
+   9:Ourwares/CanTask.c **** #include "CanTask.h"
+  10:Ourwares/CanTask.c **** #include "can_iface.h"
+  11:Ourwares/CanTask.c **** #include "morse.h"
+  12:Ourwares/CanTask.c **** 
+  13:Ourwares/CanTask.c **** void StartCanTxTask(void const * argument);
+  14:Ourwares/CanTask.c **** void StartCanRxTask(void const * argument);
+  15:Ourwares/CanTask.c **** 
+  16:Ourwares/CanTask.c **** osThreadId CanTxTaskHandle;
+  17:Ourwares/CanTask.c **** QueueHandle_t CanTxQHandle;
+  18:Ourwares/CanTask.c **** 
+  19:Ourwares/CanTask.c **** /* ====== Tx ==============================================================*/
+  20:Ourwares/CanTask.c **** /* *************************************************************************
+  21:Ourwares/CanTask.c ****  * void canmsg_expand(CAN_TxHeaderTypeDef *phal, uint8_t *pdat, struct CANRCVBUF *pcan);
+  22:Ourwares/CanTask.c ****  * @brief	: Convert hardware compressed format to silly HAL expanded format
+  23:Ourwares/CanTask.c ****  * @param	: phal = pointer to HAL output
+  24:Ourwares/CanTask.c ****  * @param	: pdat = pointer to HAL payload data array
+  25:Ourwares/CanTask.c ****  * @param	: pcan = pointer to convenient hardware format
+  26:Ourwares/CanTask.c ****  * *************************************************************************/
+  27:Ourwares/CanTask.c **** void canmsg_expand(CAN_TxHeaderTypeDef *phal, uint8_t *pdat, struct CANRCVBUF *pcan)
+  28:Ourwares/CanTask.c **** {
+  29:Ourwares/CanTask.c **** 	phal->StdId = (pcan->id >> 21);
+  30:Ourwares/CanTask.c **** 	phal->ExtId = (pcan->id >>  3);
+  31:Ourwares/CanTask.c **** 	phal->IDE   = (pcan->id & CAN_ID_EXT);
+ARM GAS  /tmp/ccNqWbpb.s 			page 2
+
+
+  32:Ourwares/CanTask.c **** 	phal->RTR   = (pcan->id & CAN_RTR_REMOTE);
+  33:Ourwares/CanTask.c **** 	phal->DLC   = (pcan->dlc & 0x7);
+  34:Ourwares/CanTask.c **** 	*(pdat+0) = pcan->cd.uc[0];
+  35:Ourwares/CanTask.c **** 	*(pdat+1) = pcan->cd.uc[1];
+  36:Ourwares/CanTask.c **** 	*(pdat+2) = pcan->cd.uc[2];
+  37:Ourwares/CanTask.c **** 	*(pdat+3) = pcan->cd.uc[3];
+  38:Ourwares/CanTask.c **** 	*(pdat+4) = pcan->cd.uc[4];
+  39:Ourwares/CanTask.c **** 	*(pdat+5) = pcan->cd.uc[5];
+  40:Ourwares/CanTask.c **** 	*(pdat+6) = pcan->cd.uc[6];
+  41:Ourwares/CanTask.c **** 	*(pdat+7) = pcan->cd.uc[7];
+  42:Ourwares/CanTask.c **** 	return;
+  43:Ourwares/CanTask.c **** }
+  44:Ourwares/CanTask.c **** 
+  45:Ourwares/CanTask.c **** /* *************************************************************************
+  46:Ourwares/CanTask.c ****  * QueueHandle_t  xCanTxTaskCreate(uint32_t taskpriority, int32_t queuesize);
+  47:Ourwares/CanTask.c ****  * @brief	: Create task; task handle created is global for all to enjoy!
+  48:Ourwares/CanTask.c ****  * @param	: taskpriority = Task priority (just as it says!)
+  49:Ourwares/CanTask.c ****  * @param	: queuesize = number of items in Tx queue
+  50:Ourwares/CanTask.c ****  * @return	: QueueHandle_t = queue handle
+  51:Ourwares/CanTask.c ****  * *************************************************************************/
+  52:Ourwares/CanTask.c **** QueueHandle_t  xCanTxTaskCreate(uint32_t taskpriority, int32_t queuesize)
+  53:Ourwares/CanTask.c **** {
+  54:Ourwares/CanTask.c ****  /* definition and creation of CanTask */
+  55:Ourwares/CanTask.c ****   osThreadDef(CanTxTask, StartCanTxTask, osPriorityNormal, 0, 128);
+  56:Ourwares/CanTask.c ****   CanTxTaskHandle = osThreadCreate(osThread(CanTxTask), NULL);
+  57:Ourwares/CanTask.c **** 	vTaskPrioritySet( CanTxTaskHandle, taskpriority );
+  58:Ourwares/CanTask.c **** 
+  59:Ourwares/CanTask.c **** 	/* FreeRTOS queue for task with data to send. */
+  60:Ourwares/CanTask.c **** 	CanTxQHandle = xQueueCreate(queuesize, sizeof(struct CANTXQMSG));
+  61:Ourwares/CanTask.c **** 	return CanTxQHandle;
+  62:Ourwares/CanTask.c **** }
+  63:Ourwares/CanTask.c **** /* *************************************************************************
+  64:Ourwares/CanTask.c ****  * void StartCanTxTask(void const * argument);
+  65:Ourwares/CanTask.c ****  *	@brief	: Task startup
+  66:Ourwares/CanTask.c ****  * *************************************************************************/
+  67:Ourwares/CanTask.c **** void StartCanTxTask(void const * argument)
+  68:Ourwares/CanTask.c **** {
+  28              		.loc 1 68 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 32
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              	.LVL0:
+  33 0000 10B5     		push	{r4, lr}
+  34              	.LCFI0:
+  35              		.cfi_def_cfa_offset 8
+  36              		.cfi_offset 4, -8
+  37              		.cfi_offset 14, -4
+  38 0002 88B0     		sub	sp, sp, #32
+  39              	.LCFI1:
+  40              		.cfi_def_cfa_offset 40
+  41              	.LVL1:
+  42              	.L2:
+  69:Ourwares/CanTask.c ****    BaseType_t Qret;	// queue receive return
+  70:Ourwares/CanTask.c **** 	struct CANTXQMSG txq;
+  71:Ourwares/CanTask.c **** 	int ret;
+  72:Ourwares/CanTask.c **** 
+  73:Ourwares/CanTask.c **** //osDelay(512*4); // Debug delay
+ARM GAS  /tmp/ccNqWbpb.s 			page 3
+
+
+  74:Ourwares/CanTask.c **** 
+  75:Ourwares/CanTask.c ****   /* Infinite RTOS Task loop */
+  76:Ourwares/CanTask.c ****   for(;;)
+  77:Ourwares/CanTask.c ****   {
+  78:Ourwares/CanTask.c **** HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13); // ORANGE
+  43              		.loc 1 78 0
+  44 0004 4FF40051 		mov	r1, #8192
+  45 0008 1448     		ldr	r0, .L8
+  46 000a FFF7FEFF 		bl	HAL_GPIO_TogglePin
+  47              	.LVL2:
+  79:Ourwares/CanTask.c **** 		Qret = xQueueReceive(CanTxQHandle,&txq,portMAX_DELAY);
+  48              		.loc 1 79 0
+  49 000e 0023     		movs	r3, #0
+  50 0010 4FF0FF32 		mov	r2, #-1
+  51 0014 6946     		mov	r1, sp
+  52 0016 1248     		ldr	r0, .L8+4
+  53 0018 0068     		ldr	r0, [r0]
+  54 001a FFF7FEFF 		bl	xQueueGenericReceive
+  55              	.LVL3:
+  80:Ourwares/CanTask.c **** 		if (Qret == pdPASS) // Break loop if not empty
+  56              		.loc 1 80 0
+  57 001e 0128     		cmp	r0, #1
+  58 0020 F0D1     		bne	.L2
+  81:Ourwares/CanTask.c **** 		{
+  82:Ourwares/CanTask.c **** 			ret = can_driver_put(txq.pctl, &txq.can, txq.maxretryct, txq.bits);
+  59              		.loc 1 82 0
+  60 0022 9DF81930 		ldrb	r3, [sp, #25]	@ zero_extendqisi2
+  61 0026 9DF81820 		ldrb	r2, [sp, #24]	@ zero_extendqisi2
+  62 002a 02A9     		add	r1, sp, #8
+  63 002c 0098     		ldr	r0, [sp]
+  64              	.LVL4:
+  65 002e FFF7FEFF 		bl	can_driver_put
+  66              	.LVL5:
+  67 0032 0446     		mov	r4, r0
+  68              	.LVL6:
+  83:Ourwares/CanTask.c **** /* ===> Trap errors
+  84:Ourwares/CanTask.c ****  *				: -1 = Buffer overrun (no free slots for the new msg)
+  85:Ourwares/CanTask.c ****  *				: -2 = Bogus CAN id rejected
+  86:Ourwares/CanTask.c ****  *				: -3 = control block pointer NULL */
+  87:Ourwares/CanTask.c **** 			if (ret == -1) morse_trap(91);
+  69              		.loc 1 87 0
+  70 0034 B0F1FF3F 		cmp	r0, #-1
+  71 0038 02D1     		bne	.L3
+  72              		.loc 1 87 0 is_stmt 0 discriminator 1
+  73 003a 5B20     		movs	r0, #91
+  74              	.LVL7:
+  75 003c FFF7FEFF 		bl	morse_trap
+  76              	.LVL8:
+  77              	.L3:
+  88:Ourwares/CanTask.c **** 			if (ret == -2) morse_trap(92);
+  78              		.loc 1 88 0 is_stmt 1
+  79 0040 14F1020F 		cmn	r4, #2
+  80 0044 02D1     		bne	.L4
+  81              		.loc 1 88 0 is_stmt 0 discriminator 1
+  82 0046 5C20     		movs	r0, #92
+  83 0048 FFF7FEFF 		bl	morse_trap
+  84              	.LVL9:
+ARM GAS  /tmp/ccNqWbpb.s 			page 4
+
+
+  85              	.L4:
+  89:Ourwares/CanTask.c **** 			if (ret == -3) morse_trap(93);
+  86              		.loc 1 89 0 is_stmt 1
+  87 004c 14F1030F 		cmn	r4, #3
+  88 0050 D8D1     		bne	.L2
+  89              		.loc 1 89 0 is_stmt 0 discriminator 1
+  90 0052 5D20     		movs	r0, #93
+  91 0054 FFF7FEFF 		bl	morse_trap
+  92              	.LVL10:
+  93 0058 D4E7     		b	.L2
+  94              	.L9:
+  95 005a 00BF     		.align	2
+  96              	.L8:
+  97 005c 00140140 		.word	1073812480
+  98 0060 00000000 		.word	CanTxQHandle
+  99              		.cfi_endproc
+ 100              	.LFE71:
+ 102              		.section	.text.StartCanRxTask,"ax",%progbits
+ 103              		.align	2
+ 104              		.global	StartCanRxTask
+ 105              		.thumb
+ 106              		.thumb_func
+ 108              	StartCanRxTask:
+ 109              	.LFB73:
+  90:Ourwares/CanTask.c **** 		}
+  91:Ourwares/CanTask.c ****   }
+  92:Ourwares/CanTask.c **** }
+  93:Ourwares/CanTask.c **** /* ====== Rx ==============================================================*/
+  94:Ourwares/CanTask.c **** osThreadId CanRxTaskHandle;
+  95:Ourwares/CanTask.c **** QueueHandle_t CanRxQHandle;
+  96:Ourwares/CanTask.c **** 
+  97:Ourwares/CanTask.c **** /* *************************************************************************
+  98:Ourwares/CanTask.c ****  * QueueHandle_t xCanRxTaskCreate(uint32_t taskpriority, int32_t queuesize);
+  99:Ourwares/CanTask.c ****  * @brief	: Create task; task handle created is global for all to enjoy!
+ 100:Ourwares/CanTask.c ****  * @param	: taskpriority = Task priority (just as it says!)
+ 101:Ourwares/CanTask.c ****  * @param	: queuesize = number of RX0 + RX1 msgs
+ 102:Ourwares/CanTask.c ****  * @return	: CanRxQHandle
+ 103:Ourwares/CanTask.c ****  * *************************************************************************/
+ 104:Ourwares/CanTask.c **** QueueHandle_t xCanRxTaskCreate(uint32_t taskpriority, int32_t queuesize)
+ 105:Ourwares/CanTask.c **** {
+ 106:Ourwares/CanTask.c ****  /* definition and creation of CanTask */
+ 107:Ourwares/CanTask.c ****   osThreadDef(CanRxTask, StartCanRxTask, osPriorityNormal, 0, 128);
+ 108:Ourwares/CanTask.c ****   CanRxTaskHandle = osThreadCreate(osThread(CanRxTask), NULL);
+ 109:Ourwares/CanTask.c **** 	vTaskPrioritySet( CanRxTaskHandle, taskpriority );
+ 110:Ourwares/CanTask.c **** 
+ 111:Ourwares/CanTask.c **** 	/* FreeRTOS queue for task with data to send. */
+ 112:Ourwares/CanTask.c **** 	CanRxQHandle = xQueueCreate(queuesize, sizeof(struct CANRCVBUFN));
+ 113:Ourwares/CanTask.c **** 
+ 114:Ourwares/CanTask.c **** 	return CanRxQHandle;
+ 115:Ourwares/CanTask.c **** }
+ 116:Ourwares/CanTask.c **** /* *************************************************************************
+ 117:Ourwares/CanTask.c ****  * void StartCanRxTask(void const * argument);
+ 118:Ourwares/CanTask.c ****  *	@brief	: Task startup
+ 119:Ourwares/CanTask.c ****  * *************************************************************************/
+ 120:Ourwares/CanTask.c **** void StartCanRxTask(void const * argument)
+ 121:Ourwares/CanTask.c **** {
+ 110              		.loc 1 121 0 is_stmt 1
+ARM GAS  /tmp/ccNqWbpb.s 			page 5
+
+
+ 111              		.cfi_startproc
+ 112              		@ Volatile: function does not return.
+ 113              		@ args = 0, pretend = 0, frame = 0
+ 114              		@ frame_needed = 0, uses_anonymous_args = 0
+ 115              	.LVL11:
+ 116 0000 08B5     		push	{r3, lr}
+ 117              	.LCFI2:
+ 118              		.cfi_def_cfa_offset 8
+ 119              		.cfi_offset 3, -8
+ 120              		.cfi_offset 14, -4
+ 122:Ourwares/CanTask.c **** /* NOTE:  Since there is just one receiving task, this task is not needed.
+ 123:Ourwares/CanTask.c ****           However, the initialization to create the queue is needed.
+ 124:Ourwares/CanTask.c **** */
+ 125:Ourwares/CanTask.c **** 	vTaskSuspend( NULL );
+ 121              		.loc 1 125 0
+ 122 0002 0020     		movs	r0, #0
+ 123              	.LVL12:
+ 124 0004 FFF7FEFF 		bl	vTaskSuspend
+ 125              	.LVL13:
+ 126              	.L11:
+ 126:Ourwares/CanTask.c **** 
+ 127:Ourwares/CanTask.c **** //   BaseType_t Qret;	// queue receive return
+ 128:Ourwares/CanTask.c **** //	struct CANRCVBUFN ncan;
+ 129:Ourwares/CanTask.c **** 
+ 130:Ourwares/CanTask.c ****   /* Infinite RTOS Task loop */
+ 131:Ourwares/CanTask.c ****   for(;;)
+ 132:Ourwares/CanTask.c ****   {
+ 133:Ourwares/CanTask.c **** osDelay(11000);
+ 127              		.loc 1 133 0 discriminator 1
+ 128 0008 42F6F820 		movw	r0, #11000
+ 129 000c FFF7FEFF 		bl	osDelay
+ 130              	.LVL14:
+ 131 0010 FAE7     		b	.L11
+ 132              		.cfi_endproc
+ 133              	.LFE73:
+ 135 0012 00BF     		.section	.text.canmsg_expand,"ax",%progbits
+ 136              		.align	2
+ 137              		.global	canmsg_expand
+ 138              		.thumb
+ 139              		.thumb_func
+ 141              	canmsg_expand:
+ 142              	.LFB69:
+  28:Ourwares/CanTask.c **** 	phal->StdId = (pcan->id >> 21);
+ 143              		.loc 1 28 0
+ 144              		.cfi_startproc
+ 145              		@ args = 0, pretend = 0, frame = 0
+ 146              		@ frame_needed = 0, uses_anonymous_args = 0
+ 147              		@ link register save eliminated.
+ 148              	.LVL15:
+  29:Ourwares/CanTask.c **** 	phal->ExtId = (pcan->id >>  3);
+ 149              		.loc 1 29 0
+ 150 0000 1368     		ldr	r3, [r2]
+ 151 0002 5B0D     		lsrs	r3, r3, #21
+ 152 0004 0360     		str	r3, [r0]
+  30:Ourwares/CanTask.c **** 	phal->IDE   = (pcan->id & CAN_ID_EXT);
+ 153              		.loc 1 30 0
+ 154 0006 1368     		ldr	r3, [r2]
+ARM GAS  /tmp/ccNqWbpb.s 			page 6
+
+
+ 155 0008 DB08     		lsrs	r3, r3, #3
+ 156 000a 4360     		str	r3, [r0, #4]
+  31:Ourwares/CanTask.c **** 	phal->RTR   = (pcan->id & CAN_RTR_REMOTE);
+ 157              		.loc 1 31 0
+ 158 000c 1368     		ldr	r3, [r2]
+ 159 000e 03F00403 		and	r3, r3, #4
+ 160 0012 8360     		str	r3, [r0, #8]
+  32:Ourwares/CanTask.c **** 	phal->DLC   = (pcan->dlc & 0x7);
+ 161              		.loc 1 32 0
+ 162 0014 1368     		ldr	r3, [r2]
+ 163 0016 03F00203 		and	r3, r3, #2
+ 164 001a C360     		str	r3, [r0, #12]
+  33:Ourwares/CanTask.c **** 	*(pdat+0) = pcan->cd.uc[0];
+ 165              		.loc 1 33 0
+ 166 001c 5368     		ldr	r3, [r2, #4]
+ 167 001e 03F00703 		and	r3, r3, #7
+ 168 0022 0361     		str	r3, [r0, #16]
+  34:Ourwares/CanTask.c **** 	*(pdat+1) = pcan->cd.uc[1];
+ 169              		.loc 1 34 0
+ 170 0024 137A     		ldrb	r3, [r2, #8]	@ zero_extendqisi2
+ 171 0026 0B70     		strb	r3, [r1]
+  35:Ourwares/CanTask.c **** 	*(pdat+2) = pcan->cd.uc[2];
+ 172              		.loc 1 35 0
+ 173 0028 537A     		ldrb	r3, [r2, #9]	@ zero_extendqisi2
+ 174 002a 4B70     		strb	r3, [r1, #1]
+  36:Ourwares/CanTask.c **** 	*(pdat+3) = pcan->cd.uc[3];
+ 175              		.loc 1 36 0
+ 176 002c 937A     		ldrb	r3, [r2, #10]	@ zero_extendqisi2
+ 177 002e 8B70     		strb	r3, [r1, #2]
+  37:Ourwares/CanTask.c **** 	*(pdat+4) = pcan->cd.uc[4];
+ 178              		.loc 1 37 0
+ 179 0030 D37A     		ldrb	r3, [r2, #11]	@ zero_extendqisi2
+ 180 0032 CB70     		strb	r3, [r1, #3]
+  38:Ourwares/CanTask.c **** 	*(pdat+5) = pcan->cd.uc[5];
+ 181              		.loc 1 38 0
+ 182 0034 137B     		ldrb	r3, [r2, #12]	@ zero_extendqisi2
+ 183 0036 0B71     		strb	r3, [r1, #4]
+  39:Ourwares/CanTask.c **** 	*(pdat+6) = pcan->cd.uc[6];
+ 184              		.loc 1 39 0
+ 185 0038 537B     		ldrb	r3, [r2, #13]	@ zero_extendqisi2
+ 186 003a 4B71     		strb	r3, [r1, #5]
+  40:Ourwares/CanTask.c **** 	*(pdat+7) = pcan->cd.uc[7];
+ 187              		.loc 1 40 0
+ 188 003c 937B     		ldrb	r3, [r2, #14]	@ zero_extendqisi2
+ 189 003e 8B71     		strb	r3, [r1, #6]
+  41:Ourwares/CanTask.c **** 	return;
+ 190              		.loc 1 41 0
+ 191 0040 D37B     		ldrb	r3, [r2, #15]	@ zero_extendqisi2
+ 192 0042 CB71     		strb	r3, [r1, #7]
+ 193 0044 7047     		bx	lr
+ 194              		.cfi_endproc
+ 195              	.LFE69:
+ 197 0046 00BF     		.section	.text.xCanTxTaskCreate,"ax",%progbits
+ 198              		.align	2
+ 199              		.global	xCanTxTaskCreate
+ 200              		.thumb
+ 201              		.thumb_func
+ARM GAS  /tmp/ccNqWbpb.s 			page 7
+
+
+ 203              	xCanTxTaskCreate:
+ 204              	.LFB70:
+  53:Ourwares/CanTask.c ****  /* definition and creation of CanTask */
+ 205              		.loc 1 53 0
+ 206              		.cfi_startproc
+ 207              		@ args = 0, pretend = 0, frame = 32
+ 208              		@ frame_needed = 0, uses_anonymous_args = 0
+ 209              	.LVL16:
+ 210 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 211              	.LCFI3:
+ 212              		.cfi_def_cfa_offset 20
+ 213              		.cfi_offset 4, -20
+ 214              		.cfi_offset 5, -16
+ 215              		.cfi_offset 6, -12
+ 216              		.cfi_offset 7, -8
+ 217              		.cfi_offset 14, -4
+ 218 0002 89B0     		sub	sp, sp, #36
+ 219              	.LCFI4:
+ 220              		.cfi_def_cfa_offset 56
+ 221 0004 0746     		mov	r7, r0
+ 222 0006 0E46     		mov	r6, r1
+  55:Ourwares/CanTask.c ****   CanTxTaskHandle = osThreadCreate(osThread(CanTxTask), NULL);
+ 223              		.loc 1 55 0
+ 224 0008 01AC     		add	r4, sp, #4
+ 225 000a 0C4D     		ldr	r5, .L16
+ 226 000c 0FCD     		ldmia	r5!, {r0, r1, r2, r3}
+ 227              	.LVL17:
+ 228 000e 0FC4     		stmia	r4!, {r0, r1, r2, r3}
+ 229 0010 95E80700 		ldmia	r5, {r0, r1, r2}
+ 230 0014 84E80700 		stmia	r4, {r0, r1, r2}
+  56:Ourwares/CanTask.c **** 	vTaskPrioritySet( CanTxTaskHandle, taskpriority );
+ 231              		.loc 1 56 0
+ 232 0018 0021     		movs	r1, #0
+ 233 001a 01A8     		add	r0, sp, #4
+ 234 001c FFF7FEFF 		bl	osThreadCreate
+ 235              	.LVL18:
+ 236 0020 074B     		ldr	r3, .L16+4
+ 237 0022 1860     		str	r0, [r3]
+  57:Ourwares/CanTask.c **** 
+ 238              		.loc 1 57 0
+ 239 0024 3946     		mov	r1, r7
+ 240 0026 FFF7FEFF 		bl	vTaskPrioritySet
+ 241              	.LVL19:
+  60:Ourwares/CanTask.c **** 	return CanTxQHandle;
+ 242              		.loc 1 60 0
+ 243 002a 0022     		movs	r2, #0
+ 244 002c 2021     		movs	r1, #32
+ 245 002e 3046     		mov	r0, r6
+ 246 0030 FFF7FEFF 		bl	xQueueGenericCreate
+ 247              	.LVL20:
+ 248 0034 034B     		ldr	r3, .L16+8
+ 249 0036 1860     		str	r0, [r3]
+  62:Ourwares/CanTask.c **** /* *************************************************************************
+ 250              		.loc 1 62 0
+ 251 0038 09B0     		add	sp, sp, #36
+ 252              	.LCFI5:
+ 253              		.cfi_def_cfa_offset 20
+ARM GAS  /tmp/ccNqWbpb.s 			page 8
+
+
+ 254              		@ sp needed
+ 255 003a F0BD     		pop	{r4, r5, r6, r7, pc}
+ 256              	.LVL21:
+ 257              	.L17:
+ 258              		.align	2
+ 259              	.L16:
+ 260 003c 00000000 		.word	.LANCHOR0
+ 261 0040 00000000 		.word	CanTxTaskHandle
+ 262 0044 00000000 		.word	CanTxQHandle
+ 263              		.cfi_endproc
+ 264              	.LFE70:
+ 266              		.section	.text.xCanRxTaskCreate,"ax",%progbits
+ 267              		.align	2
+ 268              		.global	xCanRxTaskCreate
+ 269              		.thumb
+ 270              		.thumb_func
+ 272              	xCanRxTaskCreate:
+ 273              	.LFB72:
+ 105:Ourwares/CanTask.c ****  /* definition and creation of CanTask */
+ 274              		.loc 1 105 0
+ 275              		.cfi_startproc
+ 276              		@ args = 0, pretend = 0, frame = 32
+ 277              		@ frame_needed = 0, uses_anonymous_args = 0
+ 278              	.LVL22:
+ 279 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 280              	.LCFI6:
+ 281              		.cfi_def_cfa_offset 20
+ 282              		.cfi_offset 4, -20
+ 283              		.cfi_offset 5, -16
+ 284              		.cfi_offset 6, -12
+ 285              		.cfi_offset 7, -8
+ 286              		.cfi_offset 14, -4
+ 287 0002 89B0     		sub	sp, sp, #36
+ 288              	.LCFI7:
+ 289              		.cfi_def_cfa_offset 56
+ 290 0004 0746     		mov	r7, r0
+ 291 0006 0E46     		mov	r6, r1
+ 107:Ourwares/CanTask.c ****   CanRxTaskHandle = osThreadCreate(osThread(CanRxTask), NULL);
+ 292              		.loc 1 107 0
+ 293 0008 01AC     		add	r4, sp, #4
+ 294 000a 0C4D     		ldr	r5, .L20
+ 295 000c 0FCD     		ldmia	r5!, {r0, r1, r2, r3}
+ 296              	.LVL23:
+ 297 000e 0FC4     		stmia	r4!, {r0, r1, r2, r3}
+ 298 0010 95E80700 		ldmia	r5, {r0, r1, r2}
+ 299 0014 84E80700 		stmia	r4, {r0, r1, r2}
+ 108:Ourwares/CanTask.c **** 	vTaskPrioritySet( CanRxTaskHandle, taskpriority );
+ 300              		.loc 1 108 0
+ 301 0018 0021     		movs	r1, #0
+ 302 001a 01A8     		add	r0, sp, #4
+ 303 001c FFF7FEFF 		bl	osThreadCreate
+ 304              	.LVL24:
+ 305 0020 074B     		ldr	r3, .L20+4
+ 306 0022 1860     		str	r0, [r3]
+ 109:Ourwares/CanTask.c **** 
+ 307              		.loc 1 109 0
+ 308 0024 3946     		mov	r1, r7
+ARM GAS  /tmp/ccNqWbpb.s 			page 9
+
+
+ 309 0026 FFF7FEFF 		bl	vTaskPrioritySet
+ 310              	.LVL25:
+ 112:Ourwares/CanTask.c **** 
+ 311              		.loc 1 112 0
+ 312 002a 0022     		movs	r2, #0
+ 313 002c 1821     		movs	r1, #24
+ 314 002e 3046     		mov	r0, r6
+ 315 0030 FFF7FEFF 		bl	xQueueGenericCreate
+ 316              	.LVL26:
+ 317 0034 034B     		ldr	r3, .L20+8
+ 318 0036 1860     		str	r0, [r3]
+ 115:Ourwares/CanTask.c **** /* *************************************************************************
+ 319              		.loc 1 115 0
+ 320 0038 09B0     		add	sp, sp, #36
+ 321              	.LCFI8:
+ 322              		.cfi_def_cfa_offset 20
+ 323              		@ sp needed
+ 324 003a F0BD     		pop	{r4, r5, r6, r7, pc}
+ 325              	.LVL27:
+ 326              	.L21:
+ 327              		.align	2
+ 328              	.L20:
+ 329 003c 1C000000 		.word	.LANCHOR0+28
+ 330 0040 00000000 		.word	CanRxTaskHandle
+ 331 0044 00000000 		.word	CanRxQHandle
+ 332              		.cfi_endproc
+ 333              	.LFE72:
+ 335              		.comm	CanRxQHandle,4,4
+ 336              		.comm	CanRxTaskHandle,4,4
+ 337              		.comm	CanTxQHandle,4,4
+ 338              		.comm	CanTxTaskHandle,4,4
+ 339              		.section	.rodata
+ 340              		.align	2
+ 341              		.set	.LANCHOR0,. + 0
+ 342              	.LC4:
+ 343 0000 0C000000 		.word	.LC0
+ 344 0004 00000000 		.word	StartCanTxTask
+ 345 0008 0000     		.short	0
+ 346 000a 0000     		.space	2
+ 347 000c 00000000 		.word	0
+ 348 0010 80000000 		.word	128
+ 349 0014 00000000 		.word	0
+ 350 0018 00000000 		.word	0
+ 351              	.LC5:
+ 352 001c 00000000 		.word	.LC2
+ 353 0020 00000000 		.word	StartCanRxTask
+ 354 0024 0000     		.short	0
+ 355 0026 0000     		.space	2
+ 356 0028 00000000 		.word	0
+ 357 002c 80000000 		.word	128
+ 358 0030 00000000 		.word	0
+ 359 0034 00000000 		.word	0
+ 360              		.section	.rodata.str1.4,"aMS",%progbits,1
+ 361              		.align	2
+ 362              	.LC2:
+ 363 0000 43616E52 		.ascii	"CanRxTask\000"
+ 363      78546173 
+ARM GAS  /tmp/ccNqWbpb.s 			page 10
+
+
+ 363      6B00
+ 364 000a 0000     		.space	2
+ 365              	.LC0:
+ 366 000c 43616E54 		.ascii	"CanTxTask\000"
+ 366      78546173 
+ 366      6B00
+ 367              		.text
+ 368              	.Letext0:
+ 369              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 370              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 371              		.file 4 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 372              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h"
+ 373              		.file 6 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_can.h"
+ 374              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 375              		.file 8 "Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h"
+ 376              		.file 9 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 377              		.file 10 "Middlewares/Third_Party/FreeRTOS/Source/include/queue.h"
+ 378              		.file 11 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 379              		.file 12 "Ourwares/common_misc.h"
+ 380              		.file 13 "Ourwares/common_can.h"
+ 381              		.file 14 "Ourwares/CanTask.h"
+ 382              		.file 15 "Ourwares/can_iface.h"
+ 383              		.file 16 "Drivers/CMSIS/Include/core_cm3.h"
+ 384              		.file 17 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h"
+ 385              		.file 18 "Ourwares/morse.h"
+ARM GAS  /tmp/ccNqWbpb.s 			page 11
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 CanTask.c
+     /tmp/ccNqWbpb.s:20     .text.StartCanTxTask:00000000 $t
+     /tmp/ccNqWbpb.s:25     .text.StartCanTxTask:00000000 StartCanTxTask
+     /tmp/ccNqWbpb.s:97     .text.StartCanTxTask:0000005c $d
+                            *COM*:00000004 CanTxQHandle
+     /tmp/ccNqWbpb.s:103    .text.StartCanRxTask:00000000 $t
+     /tmp/ccNqWbpb.s:108    .text.StartCanRxTask:00000000 StartCanRxTask
+     /tmp/ccNqWbpb.s:136    .text.canmsg_expand:00000000 $t
+     /tmp/ccNqWbpb.s:141    .text.canmsg_expand:00000000 canmsg_expand
+     /tmp/ccNqWbpb.s:198    .text.xCanTxTaskCreate:00000000 $t
+     /tmp/ccNqWbpb.s:203    .text.xCanTxTaskCreate:00000000 xCanTxTaskCreate
+     /tmp/ccNqWbpb.s:260    .text.xCanTxTaskCreate:0000003c $d
+                            *COM*:00000004 CanTxTaskHandle
+     /tmp/ccNqWbpb.s:267    .text.xCanRxTaskCreate:00000000 $t
+     /tmp/ccNqWbpb.s:272    .text.xCanRxTaskCreate:00000000 xCanRxTaskCreate
+     /tmp/ccNqWbpb.s:329    .text.xCanRxTaskCreate:0000003c $d
+                            *COM*:00000004 CanRxTaskHandle
+                            *COM*:00000004 CanRxQHandle
+     /tmp/ccNqWbpb.s:340    .rodata:00000000 $d
+     /tmp/ccNqWbpb.s:361    .rodata.str1.4:00000000 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+HAL_GPIO_TogglePin
+xQueueGenericReceive
+can_driver_put
+morse_trap
+vTaskSuspend
+osDelay
+osThreadCreate
+vTaskPrioritySet
+xQueueGenericCreate

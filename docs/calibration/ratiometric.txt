@@ -1,0 +1,109 @@
+ratiometric.txt
+09/11/2019
+
+Let,
+V5 = 5 volt supply
+
+Resistor ratio divides approx 5v->3.3v
+Let,
+K5 = R2/(R1+R2)
+
+Therefore, voltage to ADC5 is
+V5k = V5 * K5
+
+ADC is sum of 16 readings so,
+max ADC is (4095 * 16) = 65520
+
+V5k = (ADC5 / 65520) * Vcc = V5 * K5
+
+V5 = (ADC5 / K5) * (Vcc/65520)
+
+For ratiometric sensor,
+Let,
+Ve = voltage to Hall-effect sensor
+Ke = divider ratio
+
+Similarly,
+
+Vek = (ADCe / 65520) * Vcc = Ve * Ke
+
+Ve = (ADCe / Ke) * (Vcc/Ke)
+
+The sensor is fed from V5 and produces an
+output that is some fraction, x,--
+Ve = x V5
+
+Solving for x,
+
+x = (ADCe / ADC5) * (K5 / Ke)
+
+To determine (K5 / Ke)--
+
+Jumper 5v supply to the sensor signal,
+thus making x unity--
+
+Record ADCe, and ADC5.
+
+Let,
+K5e = (K5 / Ke) = (ADC5 / ADCe)
+
+With Ve connected back to the sensor--
+
+x = (ADCe / ADC5) * K5e
+
+Since V5k and Vek both reference Vcc variations
+in the supplies, Vcc, and V5 do not affect x.
+
+Calibration of x.
+
+For Hall-effect current sensors, zero current
+results approximately 1/2 the drive voltage, V5.
+
+With the sensor connected and zero current,
+record ADC5, ADCe.
+
+x(0) = (ADCe / ADC5) * K5e
+
+With a known current and turns, i.e. amp-turns,
+applied, record ADC5 and ADCe.
+
+x(cal) = ((ADCe / ADC5) * K5e) - x(0)
+
+The scale factor (amps) is then,
+
+scale = (x(cal) - x(0)) / amp-turns
+
+Calibrated current is--
+
+amps = (((ADCe / ADC5) * K5e) - x(0)) * scale
+
+==================================================
+
+A simplification can be made--
+
+Factor K5e from x(0)
+
+xx(0) = x(0) / K5e
+
+amps = ( (ADCe / ADC5) - xx(0)) * K5e * scale 
+
+Let,
+xscale = scale * K5e
+
+amps = ( (ADCe / ADC5) - xx(0)) * xscale 
+
+To determine xx(0), 
+record ADCe and ADC5 with no current 
+
+To determine xscale,
+record ADCe, ADC5, and calibration amp-turns
+
+xscale = amp-turns / ( (ADCe / ADC5) - xx(0))
+
+
+
+==================================================
+
+
+
+

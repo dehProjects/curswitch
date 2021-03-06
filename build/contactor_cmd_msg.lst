@@ -1,0 +1,775 @@
+ARM GAS  /tmp/cc3u6O5k.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"contactor_cmd_msg.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.load4,"ax",%progbits
+  20              		.align	2
+  21              		.thumb
+  22              		.thumb_func
+  24              	load4:
+  25              	.LFB70:
+  26              		.file 1 "Ourtasks/contactor_cmd_msg.c"
+   1:Ourtasks/contactor_cmd_msg.c **** /******************************************************************************
+   2:Ourtasks/contactor_cmd_msg.c **** * File Name          : contactor_cmd_msg.c
+   3:Ourtasks/contactor_cmd_msg.c **** * Date First Issued  : 07/03/2019
+   4:Ourtasks/contactor_cmd_msg.c **** * Description        : cid_cmd_msg_i: Function command
+   5:Ourtasks/contactor_cmd_msg.c **** *******************************************************************************/
+   6:Ourtasks/contactor_cmd_msg.c **** /*
+   7:Ourtasks/contactor_cmd_msg.c **** SENT by contactor function:
+   8:Ourtasks/contactor_cmd_msg.c ****  function command "cid_cmd_r"(response to "cid_cmd_i")
+   9:Ourtasks/contactor_cmd_msg.c ****  (4)  conditional on payload[0], for example(!)--
+  10:Ourtasks/contactor_cmd_msg.c ****       - ADC ct for calibration purposes hv1
+  11:Ourtasks/contactor_cmd_msg.c ****       - ADC ct for calibration purposes hv2
+  12:Ourtasks/contactor_cmd_msg.c ****       - ADC ct for calibration purposes hv3
+  13:Ourtasks/contactor_cmd_msg.c ****       - ADC ct for calibration purposes current1
+  14:Ourtasks/contactor_cmd_msg.c ****       - ADC ct for calibration purposes current2
+  15:Ourtasks/contactor_cmd_msg.c ****       - Duration: (Energize coil 1 - aux 1)
+  16:Ourtasks/contactor_cmd_msg.c ****       - Duration: (Energize coil 2 - aux 2)
+  17:Ourtasks/contactor_cmd_msg.c ****       - Duration: (Drop coil 1 - aux 1)
+  18:Ourtasks/contactor_cmd_msg.c ****       - Duration: (Drop coil 2 - aux 2)
+  19:Ourtasks/contactor_cmd_msg.c ****       - volts: 12v CAN supply
+  20:Ourtasks/contactor_cmd_msg.c ****       - volts: 5v regulated supply
+  21:Ourtasks/contactor_cmd_msg.c ****       ... (many and sundry)
+  22:Ourtasks/contactor_cmd_msg.c **** ==================================
+  23:Ourtasks/contactor_cmd_msg.c **** enum CONTACTOR_CMD_CODES
+  24:Ourtasks/contactor_cmd_msg.c **** {
+  25:Ourtasks/contactor_cmd_msg.c **** 	ADCRAW5V,         // PA0 IN0  - 5V sensor supply
+  26:Ourtasks/contactor_cmd_msg.c **** 	ADCRAWCUR1,       // PA5 IN5  - Current sensor: total battery current
+  27:Ourtasks/contactor_cmd_msg.c **** 	ADCRAWCUR2,       // PA6 IN6  - Current sensor: motor
+  28:Ourtasks/contactor_cmd_msg.c **** 	ADCRAW12V,        // PA7 IN7  - +12 Raw power to board
+  29:Ourtasks/contactor_cmd_msg.c **** 	ADCINTERNALTEMP,  // IN17     - Internal temperature sensor
+  30:Ourtasks/contactor_cmd_msg.c **** 	ADCINTERNALVREF,  // IN18     - Internal voltage reference
+  31:Ourtasks/contactor_cmd_msg.c **** 	UARTWHV1,
+  32:Ourtasks/contactor_cmd_msg.c **** 	UARTWHV2,
+ARM GAS  /tmp/cc3u6O5k.s 			page 2
+
+
+  33:Ourtasks/contactor_cmd_msg.c **** 	UARTWHV3,
+  34:Ourtasks/contactor_cmd_msg.c **** 	CAL5V,
+  35:Ourtasks/contactor_cmd_msg.c **** 	CAL12V,
+  36:Ourtasks/contactor_cmd_msg.c **** };
+  37:Ourtasks/contactor_cmd_msg.c **** 
+  38:Ourtasks/contactor_cmd_msg.c **** */
+  39:Ourtasks/contactor_cmd_msg.c **** #include "adcparams.h"
+  40:Ourtasks/contactor_cmd_msg.c **** #include "CanTask.h"
+  41:Ourtasks/contactor_cmd_msg.c **** #include "can_iface.h"
+  42:Ourtasks/contactor_cmd_msg.c **** #include "MailboxTask.h"
+  43:Ourtasks/contactor_cmd_msg.c **** #include "can_iface.h"
+  44:Ourtasks/contactor_cmd_msg.c **** #include "CanTask.h"
+  45:Ourtasks/contactor_cmd_msg.c **** 
+  46:Ourtasks/contactor_cmd_msg.c **** static void loadadc(struct CONTACTORFUNCTION* pcf, double dx, uint8_t idx);
+  47:Ourtasks/contactor_cmd_msg.c **** static void loadhv(struct CONTACTORFUNCTION* pcf, uint8_t idx);
+  48:Ourtasks/contactor_cmd_msg.c **** static void load4(uint8_t *po, uint32_t n);
+  49:Ourtasks/contactor_cmd_msg.c **** 
+  50:Ourtasks/contactor_cmd_msg.c **** /* *************************************************************************
+  51:Ourtasks/contactor_cmd_msg.c ****  * void contactor_cmd_msg_i(struct CONTACTORFUNCTION* pcf);
+  52:Ourtasks/contactor_cmd_msg.c ****  *	@brief	: Given the Mailbox pointer (within CONTACTORFUNCTION) handle request
+  53:Ourtasks/contactor_cmd_msg.c ****  * *************************************************************************/
+  54:Ourtasks/contactor_cmd_msg.c **** void contactor_cmd_msg_i(struct CONTACTORFUNCTION* pcf)
+  55:Ourtasks/contactor_cmd_msg.c **** {
+  56:Ourtasks/contactor_cmd_msg.c **** 
+  57:Ourtasks/contactor_cmd_msg.c **** /*
+  58:Ourtasks/contactor_cmd_msg.c **** NOTE: The CAN msg that is loaded with data is reused for all the command msg
+  59:Ourtasks/contactor_cmd_msg.c **** responses.  If for some reason the loading of the msg into the CAN hw registers
+  60:Ourtasks/contactor_cmd_msg.c **** is delayed, and another command is received, the CAN msg would be overwritten.
+  61:Ourtasks/contactor_cmd_msg.c **** This is highly unlikely, and if the incoming command CAN id is lower priority
+  62:Ourtasks/contactor_cmd_msg.c **** than the response, then it may not be possible for the overwrite situation.
+  63:Ourtasks/contactor_cmd_msg.c **** */
+  64:Ourtasks/contactor_cmd_msg.c **** 
+  65:Ourtasks/contactor_cmd_msg.c **** /* Reproduced for convenience--
+  66:Ourtasks/contactor_cmd_msg.c **** enum CONTACTOR_CMD_CODES
+  67:Ourtasks/contactor_cmd_msg.c **** {
+  68:Ourtasks/contactor_cmd_msg.c **** 	ADCRAW5V,         // PA0 IN0  - 5V sensor supply
+  69:Ourtasks/contactor_cmd_msg.c **** 	ADCRAWCUR1,       // PA5 IN5  - Current sensor: total battery current
+  70:Ourtasks/contactor_cmd_msg.c **** 	ADCRAWCUR2,       // PA6 IN6  - Current sensor: motor
+  71:Ourtasks/contactor_cmd_msg.c **** 	ADCRAW12V,        // PA7 IN7  - +12 Raw power to board
+  72:Ourtasks/contactor_cmd_msg.c **** 	ADCINTERNALTEMP,  // IN17     - Internal temperature sensor
+  73:Ourtasks/contactor_cmd_msg.c **** 	ADCINTERNALVREF,  // IN18     - Internal voltage reference
+  74:Ourtasks/contactor_cmd_msg.c **** 	UARTWHV1,  // Battery voltage
+  75:Ourtasks/contactor_cmd_msg.c **** 	UARTWHV2,  // DMOC +
+  76:Ourtasks/contactor_cmd_msg.c **** 	UARTWHV3,  // DMOC -
+  77:Ourtasks/contactor_cmd_msg.c **** 	CAL5V,     // 5V supply
+  78:Ourtasks/contactor_cmd_msg.c **** 	CAL12V,    // CAN raw 12v supply
+  79:Ourtasks/contactor_cmd_msg.c **** };
+  80:Ourtasks/contactor_cmd_msg.c **** 
+  81:Ourtasks/contactor_cmd_msg.c **** */
+  82:Ourtasks/contactor_cmd_msg.c **** 	int i;
+  83:Ourtasks/contactor_cmd_msg.c **** 	double dt1;
+  84:Ourtasks/contactor_cmd_msg.c **** 	uint8_t pay0 = pcf->pmbx_cid_cmd_i->ncan.can.cd.uc[0];
+  85:Ourtasks/contactor_cmd_msg.c **** 
+  86:Ourtasks/contactor_cmd_msg.c **** 	// Return payload request code
+  87:Ourtasks/contactor_cmd_msg.c **** 	pcf->canmsg[CID_CMD_R].can.cd.uc[0] = pcf->pmbx_cid_cmd_i->ncan.can.cd.uc[0];	
+  88:Ourtasks/contactor_cmd_msg.c **** 
+  89:Ourtasks/contactor_cmd_msg.c **** 	/* Switch on first payload byte response code */
+ARM GAS  /tmp/cc3u6O5k.s 			page 3
+
+
+  90:Ourtasks/contactor_cmd_msg.c **** 	switch (pay0)
+  91:Ourtasks/contactor_cmd_msg.c **** 	{
+  92:Ourtasks/contactor_cmd_msg.c **** 	/* ADC readings */
+  93:Ourtasks/contactor_cmd_msg.c **** 	case ADCRAW5V:         // PA0 IN0  - 5V sensor supply
+  94:Ourtasks/contactor_cmd_msg.c **** 		dt1 = ((double)pcf->padc->v5.ival * (1.0/(1<<ADCSCALEbits)) * pcf->padc->v5.dscale);
+  95:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADC1IDX_5VOLTSUPPLY); 
+  96:Ourtasks/contactor_cmd_msg.c **** 		break;
+  97:Ourtasks/contactor_cmd_msg.c **** 
+  98:Ourtasks/contactor_cmd_msg.c **** 	case ADCRAW12V:        // PA7 IN7  - +12 Raw power to board
+  99:Ourtasks/contactor_cmd_msg.c **** 		dt1 = ((double)pcf->padc->v12.ival * (1.0/(1<<ADCSCALEbits)) * pcf->padc->v12.dscale);
+ 100:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADC1IDX_12VRAWSUPPLY); 
+ 101:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 102:Ourtasks/contactor_cmd_msg.c **** 
+ 103:Ourtasks/contactor_cmd_msg.c **** 	case ADCINTERNALVREF:  // IN18     - Internal voltage reference
+ 104:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,pcf->padc->intern.dvref,pay0); 
+ 105:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 106:Ourtasks/contactor_cmd_msg.c **** 
+ 107:Ourtasks/contactor_cmd_msg.c **** 	case ADCRAWCUR1:       // PA5 IN5  - Current sensor: total battery current
+ 108:Ourtasks/contactor_cmd_msg.c **** 		dt1 = (pcf->padc->cur1.iI * pcf->padc->cur1.dscale) / (1<<ADCSCALEbits);
+ 109:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADCRAWCUR1); 
+ 110:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 111:Ourtasks/contactor_cmd_msg.c **** 
+ 112:Ourtasks/contactor_cmd_msg.c **** 	case ADCRAWCUR2:       // PA6 IN6  - Current sensor: motor
+ 113:Ourtasks/contactor_cmd_msg.c **** 		dt1 = (pcf->padc->cur2.iI * pcf->padc->cur2.dscale) / (1<<ADCSCALEbits);
+ 114:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADCRAWCUR2); 
+ 115:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 116:Ourtasks/contactor_cmd_msg.c **** 
+ 117:Ourtasks/contactor_cmd_msg.c **** 	case ADCINTERNALTEMP:  // IN17     - Internal temperature sensor
+ 118:Ourtasks/contactor_cmd_msg.c **** 		// Convert readings to degC
+ 119:Ourtasks/contactor_cmd_msg.c **** 		dt1 = (pcf->padc->intern.dx25 - (pcf->padc->intern.dxdvref * 
+ 120:Ourtasks/contactor_cmd_msg.c ****          ((double)pcf->padc->intern.adcfiltemp / (double)pcf->padc->intern.adcfilvref ))) + 
+ 121:Ourtasks/contactor_cmd_msg.c ****             pcf->padc->lc.calintern.drmtemp;
+ 122:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,pay0);
+ 123:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 124:Ourtasks/contactor_cmd_msg.c **** 	
+ 125:Ourtasks/contactor_cmd_msg.c **** 	/* External uart high voltage sensor readings. */
+ 126:Ourtasks/contactor_cmd_msg.c **** 	case UARTWHV1: loadhv(pcf,IDXHV1); break;
+ 127:Ourtasks/contactor_cmd_msg.c **** 	case UARTWHV2: loadhv(pcf,IDXHV2); break;
+ 128:Ourtasks/contactor_cmd_msg.c **** 	case UARTWHV3: loadhv(pcf,IDXHV3); break;
+ 129:Ourtasks/contactor_cmd_msg.c **** 
+ 130:Ourtasks/contactor_cmd_msg.c **** 	/* Bogus code */
+ 131:Ourtasks/contactor_cmd_msg.c **** 	default:
+ 132:Ourtasks/contactor_cmd_msg.c **** 		for (i = 1; i < 7; i++) pcf->canmsg[CID_CMD_R].can.cd.uc[i] = 0;
+ 133:Ourtasks/contactor_cmd_msg.c **** 		pcf->canmsg[CID_CMD_R].can.dlc = 7; // Number of payload bytes
+ 134:Ourtasks/contactor_cmd_msg.c **** 		
+ 135:Ourtasks/contactor_cmd_msg.c **** 	}
+ 136:Ourtasks/contactor_cmd_msg.c **** 	// Queue CAN msg
+ 137:Ourtasks/contactor_cmd_msg.c **** 	xQueueSendToBack(CanTxQHandle,&pcf->canmsg[CID_CMD_R],portMAX_DELAY);
+ 138:Ourtasks/contactor_cmd_msg.c **** 
+ 139:Ourtasks/contactor_cmd_msg.c **** }
+ 140:Ourtasks/contactor_cmd_msg.c **** /* *************************************************************************
+ 141:Ourtasks/contactor_cmd_msg.c ****  * static void load4(uint8_t *po, uint32_t n);
+ 142:Ourtasks/contactor_cmd_msg.c ****  *	@brief	: Copy uint32 into byte array (not aligned)
+ 143:Ourtasks/contactor_cmd_msg.c ****  * *************************************************************************/
+ 144:Ourtasks/contactor_cmd_msg.c **** static void load4(uint8_t *po, uint32_t n)
+ 145:Ourtasks/contactor_cmd_msg.c **** {
+  27              		.loc 1 145 0
+ARM GAS  /tmp/cc3u6O5k.s 			page 4
+
+
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		@ link register save eliminated.
+  32              	.LVL0:
+ 146:Ourtasks/contactor_cmd_msg.c **** 	*(po + 0) = (n >>  0);
+  33              		.loc 1 146 0
+  34 0000 0170     		strb	r1, [r0]
+ 147:Ourtasks/contactor_cmd_msg.c **** 	*(po + 1) = (n >>  8);
+  35              		.loc 1 147 0
+  36 0002 0B0A     		lsrs	r3, r1, #8
+  37 0004 4370     		strb	r3, [r0, #1]
+ 148:Ourtasks/contactor_cmd_msg.c **** 	*(po + 2) = (n >> 16);
+  38              		.loc 1 148 0
+  39 0006 0B0C     		lsrs	r3, r1, #16
+  40 0008 8370     		strb	r3, [r0, #2]
+ 149:Ourtasks/contactor_cmd_msg.c **** 	*(po + 3) = (n >> 24);
+  41              		.loc 1 149 0
+  42 000a 090E     		lsrs	r1, r1, #24
+  43              	.LVL1:
+  44 000c C170     		strb	r1, [r0, #3]
+  45 000e 7047     		bx	lr
+  46              		.cfi_endproc
+  47              	.LFE70:
+  49              		.global	__aeabi_d2f
+  50              		.section	.text.loadadc,"ax",%progbits
+  51              		.align	2
+  52              		.thumb
+  53              		.thumb_func
+  55              	loadadc:
+  56              	.LFB71:
+ 150:Ourtasks/contactor_cmd_msg.c **** 	return;
+ 151:Ourtasks/contactor_cmd_msg.c **** }
+ 152:Ourtasks/contactor_cmd_msg.c **** /* *************************************************************************
+ 153:Ourtasks/contactor_cmd_msg.c ****  * static void loadadc(struct CONTACTORFUNCTION* pcf, uint8_t idx);
+ 154:Ourtasks/contactor_cmd_msg.c ****  *	@brief	: Load high voltage readings and send CAN msg
+ 155:Ourtasks/contactor_cmd_msg.c ****  * *************************************************************************/
+ 156:Ourtasks/contactor_cmd_msg.c **** static void loadadc(struct CONTACTORFUNCTION* pcf, double dx, uint8_t idx)
+ 157:Ourtasks/contactor_cmd_msg.c **** {
+  57              		.loc 1 157 0
+  58              		.cfi_startproc
+  59              		@ args = 4, pretend = 0, frame = 0
+  60              		@ frame_needed = 0, uses_anonymous_args = 0
+  61              	.LVL2:
+  62 0000 38B5     		push	{r3, r4, r5, lr}
+  63              	.LCFI0:
+  64              		.cfi_def_cfa_offset 16
+  65              		.cfi_offset 3, -16
+  66              		.cfi_offset 4, -12
+  67              		.cfi_offset 5, -8
+  68              		.cfi_offset 14, -4
+  69 0002 0446     		mov	r4, r0
+  70 0004 9DF81010 		ldrb	r1, [sp, #16]	@ zero_extendqisi2
+ 158:Ourtasks/contactor_cmd_msg.c **** 	// For loading float into payload
+ 159:Ourtasks/contactor_cmd_msg.c **** 	union UIF
+ 160:Ourtasks/contactor_cmd_msg.c **** 	{
+ 161:Ourtasks/contactor_cmd_msg.c **** 		uint32_t ui;
+ARM GAS  /tmp/cc3u6O5k.s 			page 5
+
+
+ 162:Ourtasks/contactor_cmd_msg.c **** 		float    f;
+ 163:Ourtasks/contactor_cmd_msg.c **** 	}tmp;
+ 164:Ourtasks/contactor_cmd_msg.c **** 
+ 165:Ourtasks/contactor_cmd_msg.c **** 	// Raw integer readings (sum of 1/2 DMA buffer)
+ 166:Ourtasks/contactor_cmd_msg.c **** 	uint16_t tmp16 = pcf->padc->chan[idx].sum; // Get raw sum reading
+  71              		.loc 1 166 0
+  72 0008 D0F8E850 		ldr	r5, [r0, #232]
+  73 000c 01EB8101 		add	r1, r1, r1, lsl #2
+  74 0010 0801     		lsls	r0, r1, #4
+  75              	.LVL3:
+  76 0012 2844     		add	r0, r0, r5
+  77 0014 B0F82412 		ldrh	r1, [r0, #548]
+  78              	.LVL4:
+ 167:Ourtasks/contactor_cmd_msg.c **** 	pcf->canmsg[CID_CMD_R].can.cd.uc[1] = (tmp16 >> 0);
+  79              		.loc 1 167 0
+  80 0018 84F8B912 		strb	r1, [r4, #697]
+ 168:Ourtasks/contactor_cmd_msg.c **** 	pcf->canmsg[CID_CMD_R].can.cd.uc[2] = (tmp16 >> 8);
+  81              		.loc 1 168 0
+  82 001c 090A     		lsrs	r1, r1, #8
+  83              	.LVL5:
+  84 001e 84F8BA12 		strb	r1, [r4, #698]
+ 169:Ourtasks/contactor_cmd_msg.c **** 
+ 170:Ourtasks/contactor_cmd_msg.c **** 	// Calibrated 
+ 171:Ourtasks/contactor_cmd_msg.c **** 	// Load reading as a float into payload
+ 172:Ourtasks/contactor_cmd_msg.c **** //	double dtmp  = pcf->padc->chan[idx].ival;  // Convert int to float
+ 173:Ourtasks/contactor_cmd_msg.c **** //	       dtmp *= pcf->padc->chan[idx].dscale; // Final scaling
+ 174:Ourtasks/contactor_cmd_msg.c **** 	tmp.f = dx;  // Convert double to float
+  85              		.loc 1 174 0
+  86 0022 1046     		mov	r0, r2
+  87 0024 1946     		mov	r1, r3
+  88 0026 FFF7FEFF 		bl	__aeabi_d2f
+  89              	.LVL6:
+ 175:Ourtasks/contactor_cmd_msg.c **** 	load4(&pcf->canmsg[CID_CMD_R].can.cd.uc[3],tmp.ui); // Load payload
+  90              		.loc 1 175 0
+  91 002a 0146     		mov	r1, r0
+  92 002c 04F2BB20 		addw	r0, r4, #699
+  93 0030 FFF7FEFF 		bl	load4
+  94              	.LVL7:
+ 176:Ourtasks/contactor_cmd_msg.c **** 
+ 177:Ourtasks/contactor_cmd_msg.c **** 	pcf->canmsg[CID_CMD_R].can.dlc = 7; // Number of payload bytes
+  95              		.loc 1 177 0
+  96 0034 0723     		movs	r3, #7
+  97 0036 C4F8B432 		str	r3, [r4, #692]
+  98 003a 38BD     		pop	{r3, r4, r5, pc}
+  99              		.cfi_endproc
+ 100              	.LFE71:
+ 102              		.global	__aeabi_ui2d
+ 103              		.global	__aeabi_dmul
+ 104              		.section	.text.loadhv,"ax",%progbits
+ 105              		.align	2
+ 106              		.thumb
+ 107              		.thumb_func
+ 109              	loadhv:
+ 110              	.LFB72:
+ 178:Ourtasks/contactor_cmd_msg.c **** 	return;
+ 179:Ourtasks/contactor_cmd_msg.c **** }
+ 180:Ourtasks/contactor_cmd_msg.c **** /* *************************************************************************
+ARM GAS  /tmp/cc3u6O5k.s 			page 6
+
+
+ 181:Ourtasks/contactor_cmd_msg.c ****  * static void loadhv(struct CONTACTORFUNCTION* pcf, uint8_t idx);
+ 182:Ourtasks/contactor_cmd_msg.c ****  *	@brief	: Load high voltage readings and send CAN msg
+ 183:Ourtasks/contactor_cmd_msg.c ****  * *************************************************************************/
+ 184:Ourtasks/contactor_cmd_msg.c **** static void loadhv(struct CONTACTORFUNCTION* pcf, uint8_t idx)
+ 185:Ourtasks/contactor_cmd_msg.c **** {
+ 111              		.loc 1 185 0
+ 112              		.cfi_startproc
+ 113              		@ args = 0, pretend = 0, frame = 0
+ 114              		@ frame_needed = 0, uses_anonymous_args = 0
+ 115              	.LVL8:
+ 116 0000 70B5     		push	{r4, r5, r6, lr}
+ 117              	.LCFI1:
+ 118              		.cfi_def_cfa_offset 16
+ 119              		.cfi_offset 4, -16
+ 120              		.cfi_offset 5, -12
+ 121              		.cfi_offset 6, -8
+ 122              		.cfi_offset 14, -4
+ 123 0002 0446     		mov	r4, r0
+ 124 0004 0E46     		mov	r6, r1
+ 186:Ourtasks/contactor_cmd_msg.c **** 	// Calibrated as a float
+ 187:Ourtasks/contactor_cmd_msg.c **** 	union UIF
+ 188:Ourtasks/contactor_cmd_msg.c **** 	{
+ 189:Ourtasks/contactor_cmd_msg.c **** 		uint32_t ui;
+ 190:Ourtasks/contactor_cmd_msg.c **** 		float    f;
+ 191:Ourtasks/contactor_cmd_msg.c **** 	}tmp;
+ 192:Ourtasks/contactor_cmd_msg.c **** 
+ 193:Ourtasks/contactor_cmd_msg.c **** 	// Raw integer reading
+ 194:Ourtasks/contactor_cmd_msg.c **** 	pcf->canmsg[CID_CMD_R].can.cd.uc[1] = (pcf->hv[idx].hv >> 0);
+ 125              		.loc 1 194 0
+ 126 0006 CD00     		lsls	r5, r1, #3
+ 127 0008 6A1A     		subs	r2, r5, r1
+ 128 000a D300     		lsls	r3, r2, #3
+ 129 000c 0344     		add	r3, r3, r0
+ 130 000e B3F89821 		ldrh	r2, [r3, #408]
+ 131 0012 80F8B922 		strb	r2, [r0, #697]
+ 195:Ourtasks/contactor_cmd_msg.c **** 	pcf->canmsg[CID_CMD_R].can.cd.uc[2] = (pcf->hv[idx].hv >> 8);
+ 132              		.loc 1 195 0
+ 133 0016 B3F89821 		ldrh	r2, [r3, #408]
+ 134 001a 120A     		lsrs	r2, r2, #8
+ 135 001c 80F8BA22 		strb	r2, [r0, #698]
+ 196:Ourtasks/contactor_cmd_msg.c **** 
+ 197:Ourtasks/contactor_cmd_msg.c **** 	// Load reading as a float into payload
+ 198:Ourtasks/contactor_cmd_msg.c **** 	double dtmp = pcf->hv[idx].hv; // Convert uint16_t to float
+ 136              		.loc 1 198 0
+ 137 0020 B3F89801 		ldrh	r0, [r3, #408]
+ 138              	.LVL9:
+ 139 0024 FFF7FEFF 		bl	__aeabi_ui2d
+ 140              	.LVL10:
+ 199:Ourtasks/contactor_cmd_msg.c **** 	       dtmp *= pcf->hv[idx].dscale;
+ 141              		.loc 1 199 0
+ 142 0028 AD1B     		subs	r5, r5, r6
+ 143 002a EB00     		lsls	r3, r5, #3
+ 144 002c 2344     		add	r3, r3, r4
+ 145 002e 03F5C073 		add	r3, r3, #384
+ 146 0032 D3E90023 		ldrd	r2, [r3]
+ 147 0036 FFF7FEFF 		bl	__aeabi_dmul
+ 148              	.LVL11:
+ARM GAS  /tmp/cc3u6O5k.s 			page 7
+
+
+ 200:Ourtasks/contactor_cmd_msg.c ****    tmp.f = dtmp;
+ 149              		.loc 1 200 0
+ 150 003a FFF7FEFF 		bl	__aeabi_d2f
+ 151              	.LVL12:
+ 201:Ourtasks/contactor_cmd_msg.c **** 	load4(&pcf->canmsg[CID_CMD_R].can.cd.uc[3],tmp.ui);
+ 152              		.loc 1 201 0
+ 153 003e 0146     		mov	r1, r0
+ 154 0040 04F2BB20 		addw	r0, r4, #699
+ 155 0044 FFF7FEFF 		bl	load4
+ 156              	.LVL13:
+ 202:Ourtasks/contactor_cmd_msg.c **** 
+ 203:Ourtasks/contactor_cmd_msg.c **** 	pcf->canmsg[CID_CMD_R].can.dlc = 7; // Number of payload bytes
+ 157              		.loc 1 203 0
+ 158 0048 0723     		movs	r3, #7
+ 159 004a C4F8B432 		str	r3, [r4, #692]
+ 160 004e 70BD     		pop	{r4, r5, r6, pc}
+ 161              		.cfi_endproc
+ 162              	.LFE72:
+ 164              		.global	__aeabi_i2d
+ 165              		.global	__aeabi_ddiv
+ 166              		.global	__aeabi_dsub
+ 167              		.global	__aeabi_dadd
+ 168              		.section	.text.contactor_cmd_msg_i,"ax",%progbits
+ 169              		.align	2
+ 170              		.global	contactor_cmd_msg_i
+ 171              		.thumb
+ 172              		.thumb_func
+ 174              	contactor_cmd_msg_i:
+ 175              	.LFB69:
+  55:Ourtasks/contactor_cmd_msg.c **** 
+ 176              		.loc 1 55 0
+ 177              		.cfi_startproc
+ 178              		@ args = 0, pretend = 0, frame = 8
+ 179              		@ frame_needed = 0, uses_anonymous_args = 0
+ 180              	.LVL14:
+ 181 0000 2DE9F047 		push	{r4, r5, r6, r7, r8, r9, r10, lr}
+ 182              	.LCFI2:
+ 183              		.cfi_def_cfa_offset 32
+ 184              		.cfi_offset 4, -32
+ 185              		.cfi_offset 5, -28
+ 186              		.cfi_offset 6, -24
+ 187              		.cfi_offset 7, -20
+ 188              		.cfi_offset 8, -16
+ 189              		.cfi_offset 9, -12
+ 190              		.cfi_offset 10, -8
+ 191              		.cfi_offset 14, -4
+ 192 0004 84B0     		sub	sp, sp, #16
+ 193              	.LCFI3:
+ 194              		.cfi_def_cfa_offset 48
+ 195 0006 0446     		mov	r4, r0
+  84:Ourtasks/contactor_cmd_msg.c **** 
+ 196              		.loc 1 84 0
+ 197 0008 D0F81432 		ldr	r3, [r0, #532]
+ 198 000c 1D7A     		ldrb	r5, [r3, #8]	@ zero_extendqisi2
+ 199              	.LVL15:
+  87:Ourtasks/contactor_cmd_msg.c **** 
+ 200              		.loc 1 87 0
+ARM GAS  /tmp/cc3u6O5k.s 			page 8
+
+
+ 201 000e 80F8B852 		strb	r5, [r0, #696]
+  90:Ourtasks/contactor_cmd_msg.c **** 	{
+ 202              		.loc 1 90 0
+ 203 0012 082D     		cmp	r5, #8
+ 204 0014 00F2BC80 		bhi	.L20
+ 205 0018 DFE805F0 		tbb	[pc, r5]
+ 206              	.L9:
+ 207 001c 05       		.byte	(.L8-.L9)/2
+ 208 001d 41       		.byte	(.L10-.L9)/2
+ 209 001e 5C       		.byte	(.L11-.L9)/2
+ 210 001f 1E       		.byte	(.L12-.L9)/2
+ 211 0020 77       		.byte	(.L13-.L9)/2
+ 212 0021 37       		.byte	(.L14-.L9)/2
+ 213 0022 A8       		.byte	(.L15-.L9)/2
+ 214 0023 AC       		.byte	(.L16-.L9)/2
+ 215 0024 B0       		.byte	(.L17-.L9)/2
+ 216 0025 00       		.p2align 1
+ 217              	.L8:
+  94:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADC1IDX_5VOLTSUPPLY); 
+ 218              		.loc 1 94 0
+ 219 0026 D0F8E850 		ldr	r5, [r0, #232]
+ 220              	.LVL16:
+ 221 002a D5F8A401 		ldr	r0, [r5, #420]
+ 222              	.LVL17:
+ 223 002e FFF7FEFF 		bl	__aeabi_ui2d
+ 224              	.LVL18:
+ 225 0032 0022     		movs	r2, #0
+ 226 0034 4FF07C53 		mov	r3, #1056964608
+ 227 0038 FFF7FEFF 		bl	__aeabi_dmul
+ 228              	.LVL19:
+ 229 003c 05F5C875 		add	r5, r5, #400
+ 230 0040 D5E90023 		ldrd	r2, [r5]
+ 231 0044 FFF7FEFF 		bl	__aeabi_dmul
+ 232              	.LVL20:
+  95:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 233              		.loc 1 95 0
+ 234 0048 0023     		movs	r3, #0
+ 235 004a 0093     		str	r3, [sp]
+ 236 004c 0246     		mov	r2, r0
+ 237 004e 0B46     		mov	r3, r1
+ 238 0050 2046     		mov	r0, r4
+ 239              	.LVL21:
+ 240 0052 FFF7FEFF 		bl	loadadc
+ 241              	.LVL22:
+  96:Ourtasks/contactor_cmd_msg.c **** 
+ 242              		.loc 1 96 0
+ 243 0056 A1E0     		b	.L18
+ 244              	.LVL23:
+ 245              	.L12:
+  99:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADC1IDX_12VRAWSUPPLY); 
+ 246              		.loc 1 99 0
+ 247 0058 D0F8E850 		ldr	r5, [r0, #232]
+ 248              	.LVL24:
+ 249 005c D5F87401 		ldr	r0, [r5, #372]
+ 250              	.LVL25:
+ 251 0060 FFF7FEFF 		bl	__aeabi_ui2d
+ 252              	.LVL26:
+ARM GAS  /tmp/cc3u6O5k.s 			page 9
+
+
+ 253 0064 0022     		movs	r2, #0
+ 254 0066 4FF07C53 		mov	r3, #1056964608
+ 255 006a FFF7FEFF 		bl	__aeabi_dmul
+ 256              	.LVL27:
+ 257 006e 05F5B075 		add	r5, r5, #352
+ 258 0072 D5E90023 		ldrd	r2, [r5]
+ 259 0076 FFF7FEFF 		bl	__aeabi_dmul
+ 260              	.LVL28:
+ 100:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 261              		.loc 1 100 0
+ 262 007a 0323     		movs	r3, #3
+ 263 007c 0093     		str	r3, [sp]
+ 264 007e 0246     		mov	r2, r0
+ 265 0080 0B46     		mov	r3, r1
+ 266 0082 2046     		mov	r0, r4
+ 267              	.LVL29:
+ 268 0084 FFF7FEFF 		bl	loadadc
+ 269              	.LVL30:
+ 101:Ourtasks/contactor_cmd_msg.c **** 
+ 270              		.loc 1 101 0
+ 271 0088 88E0     		b	.L18
+ 272              	.LVL31:
+ 273              	.L14:
+ 104:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 274              		.loc 1 104 0
+ 275 008a D0F8E830 		ldr	r3, [r0, #232]
+ 276 008e 03F58873 		add	r3, r3, #272
+ 277 0092 D3E90023 		ldrd	r2, [r3]
+ 278 0096 0095     		str	r5, [sp]
+ 279 0098 FFF7FEFF 		bl	loadadc
+ 280              	.LVL32:
+ 105:Ourtasks/contactor_cmd_msg.c **** 
+ 281              		.loc 1 105 0
+ 282 009c 7EE0     		b	.L18
+ 283              	.LVL33:
+ 284              	.L10:
+ 108:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADCRAWCUR1); 
+ 285              		.loc 1 108 0
+ 286 009e D0F8E830 		ldr	r3, [r0, #232]
+ 287 00a2 03F5E472 		add	r2, r3, #456
+ 288 00a6 D2E90067 		ldrd	r6, [r2]
+ 289 00aa D3F8D801 		ldr	r0, [r3, #472]
+ 290              	.LVL34:
+ 291 00ae FFF7FEFF 		bl	__aeabi_i2d
+ 292              	.LVL35:
+ 293 00b2 3246     		mov	r2, r6
+ 294 00b4 3B46     		mov	r3, r7
+ 295 00b6 FFF7FEFF 		bl	__aeabi_dmul
+ 296              	.LVL36:
+ 297 00ba 0022     		movs	r2, #0
+ 298 00bc 4FF07C53 		mov	r3, #1056964608
+ 299 00c0 FFF7FEFF 		bl	__aeabi_dmul
+ 300              	.LVL37:
+ 109:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 301              		.loc 1 109 0
+ 302 00c4 0123     		movs	r3, #1
+ 303 00c6 0093     		str	r3, [sp]
+ARM GAS  /tmp/cc3u6O5k.s 			page 10
+
+
+ 304 00c8 0246     		mov	r2, r0
+ 305 00ca 0B46     		mov	r3, r1
+ 306 00cc 2046     		mov	r0, r4
+ 307              	.LVL38:
+ 308 00ce FFF7FEFF 		bl	loadadc
+ 309              	.LVL39:
+ 110:Ourtasks/contactor_cmd_msg.c **** 
+ 310              		.loc 1 110 0
+ 311 00d2 63E0     		b	.L18
+ 312              	.LVL40:
+ 313              	.L11:
+ 113:Ourtasks/contactor_cmd_msg.c **** 		loadadc(pcf,dt1,ADCRAWCUR2); 
+ 314              		.loc 1 113 0
+ 315 00d4 D0F8E830 		ldr	r3, [r0, #232]
+ 316 00d8 03F50072 		add	r2, r3, #512
+ 317 00dc D2E90067 		ldrd	r6, [r2]
+ 318 00e0 D3F81002 		ldr	r0, [r3, #528]
+ 319              	.LVL41:
+ 320 00e4 FFF7FEFF 		bl	__aeabi_i2d
+ 321              	.LVL42:
+ 322 00e8 3246     		mov	r2, r6
+ 323 00ea 3B46     		mov	r3, r7
+ 324 00ec FFF7FEFF 		bl	__aeabi_dmul
+ 325              	.LVL43:
+ 326 00f0 0022     		movs	r2, #0
+ 327 00f2 4FF07C53 		mov	r3, #1056964608
+ 328 00f6 FFF7FEFF 		bl	__aeabi_dmul
+ 329              	.LVL44:
+ 114:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 330              		.loc 1 114 0
+ 331 00fa 0223     		movs	r3, #2
+ 332 00fc 0093     		str	r3, [sp]
+ 333 00fe 0246     		mov	r2, r0
+ 334 0100 0B46     		mov	r3, r1
+ 335 0102 2046     		mov	r0, r4
+ 336              	.LVL45:
+ 337 0104 FFF7FEFF 		bl	loadadc
+ 338              	.LVL46:
+ 115:Ourtasks/contactor_cmd_msg.c **** 
+ 339              		.loc 1 115 0
+ 340 0108 48E0     		b	.L18
+ 341              	.LVL47:
+ 342              	.L13:
+ 119:Ourtasks/contactor_cmd_msg.c ****          ((double)pcf->padc->intern.adcfiltemp / (double)pcf->padc->intern.adcfilvref ))) + 
+ 343              		.loc 1 119 0
+ 344 010a D0F8E8A0 		ldr	r10, [r0, #232]
+ 345 010e 0AF59473 		add	r3, r10, #296
+ 346 0112 D3E90067 		ldrd	r6, [r3]
+ 347 0116 0AF59873 		add	r3, r10, #304
+ 348 011a D3E90089 		ldrd	r8, [r3]
+ 120:Ourtasks/contactor_cmd_msg.c ****             pcf->padc->lc.calintern.drmtemp;
+ 349              		.loc 1 120 0
+ 350 011e DAF80401 		ldr	r0, [r10, #260]
+ 351              	.LVL48:
+ 352 0122 FFF7FEFF 		bl	__aeabi_ui2d
+ 353              	.LVL49:
+ 354 0126 CDE90201 		strd	r0, [sp, #8]
+ARM GAS  /tmp/cc3u6O5k.s 			page 11
+
+
+ 355 012a DAF80001 		ldr	r0, [r10, #256]
+ 356 012e FFF7FEFF 		bl	__aeabi_ui2d
+ 357              	.LVL50:
+ 358 0132 0246     		mov	r2, r0
+ 359 0134 0B46     		mov	r3, r1
+ 360 0136 DDE90201 		ldrd	r0, [sp, #8]
+ 361 013a FFF7FEFF 		bl	__aeabi_ddiv
+ 362              	.LVL51:
+ 119:Ourtasks/contactor_cmd_msg.c ****          ((double)pcf->padc->intern.adcfiltemp / (double)pcf->padc->intern.adcfilvref ))) + 
+ 363              		.loc 1 119 0
+ 364 013e 0246     		mov	r2, r0
+ 365 0140 0B46     		mov	r3, r1
+ 366 0142 4046     		mov	r0, r8
+ 367 0144 4946     		mov	r1, r9
+ 368 0146 FFF7FEFF 		bl	__aeabi_dmul
+ 369              	.LVL52:
+ 370 014a 0246     		mov	r2, r0
+ 371 014c 0B46     		mov	r3, r1
+ 372 014e 3046     		mov	r0, r6
+ 373 0150 3946     		mov	r1, r7
+ 374 0152 FFF7FEFF 		bl	__aeabi_dsub
+ 375              	.LVL53:
+ 376 0156 DAE90823 		ldrd	r2, [r10, #32]
+ 377 015a FFF7FEFF 		bl	__aeabi_dadd
+ 378              	.LVL54:
+ 122:Ourtasks/contactor_cmd_msg.c **** 		break;
+ 379              		.loc 1 122 0
+ 380 015e 0095     		str	r5, [sp]
+ 381 0160 0246     		mov	r2, r0
+ 382 0162 0B46     		mov	r3, r1
+ 383 0164 2046     		mov	r0, r4
+ 384              	.LVL55:
+ 385 0166 FFF7FEFF 		bl	loadadc
+ 386              	.LVL56:
+ 123:Ourtasks/contactor_cmd_msg.c **** 	
+ 387              		.loc 1 123 0
+ 388 016a 17E0     		b	.L18
+ 389              	.LVL57:
+ 390              	.L15:
+ 126:Ourtasks/contactor_cmd_msg.c **** 	case UARTWHV2: loadhv(pcf,IDXHV2); break;
+ 391              		.loc 1 126 0
+ 392 016c 0021     		movs	r1, #0
+ 393 016e FFF7FEFF 		bl	loadhv
+ 394              	.LVL58:
+ 395 0172 13E0     		b	.L18
+ 396              	.LVL59:
+ 397              	.L16:
+ 127:Ourtasks/contactor_cmd_msg.c **** 	case UARTWHV3: loadhv(pcf,IDXHV3); break;
+ 398              		.loc 1 127 0
+ 399 0174 0121     		movs	r1, #1
+ 400 0176 FFF7FEFF 		bl	loadhv
+ 401              	.LVL60:
+ 402 017a 0FE0     		b	.L18
+ 403              	.LVL61:
+ 404              	.L17:
+ 128:Ourtasks/contactor_cmd_msg.c **** 
+ 405              		.loc 1 128 0
+ARM GAS  /tmp/cc3u6O5k.s 			page 12
+
+
+ 406 017c 0221     		movs	r1, #2
+ 407 017e FFF7FEFF 		bl	loadhv
+ 408              	.LVL62:
+ 409 0182 0BE0     		b	.L18
+ 410              	.LVL63:
+ 411              	.L19:
+ 132:Ourtasks/contactor_cmd_msg.c **** 		pcf->canmsg[CID_CMD_R].can.dlc = 7; // Number of payload bytes
+ 412              		.loc 1 132 0 discriminator 3
+ 413 0184 E218     		adds	r2, r4, r3
+ 414 0186 0021     		movs	r1, #0
+ 415 0188 82F8B812 		strb	r1, [r2, #696]
+ 416 018c 0133     		adds	r3, r3, #1
+ 417              	.LVL64:
+ 418 018e 00E0     		b	.L7
+ 419              	.LVL65:
+ 420              	.L20:
+  90:Ourtasks/contactor_cmd_msg.c **** 	{
+ 421              		.loc 1 90 0
+ 422 0190 0123     		movs	r3, #1
+ 423              	.L7:
+ 424              	.LVL66:
+ 132:Ourtasks/contactor_cmd_msg.c **** 		pcf->canmsg[CID_CMD_R].can.dlc = 7; // Number of payload bytes
+ 425              		.loc 1 132 0 discriminator 1
+ 426 0192 062B     		cmp	r3, #6
+ 427 0194 F6DD     		ble	.L19
+ 133:Ourtasks/contactor_cmd_msg.c **** 		
+ 428              		.loc 1 133 0
+ 429 0196 0723     		movs	r3, #7
+ 430              	.LVL67:
+ 431 0198 C4F8B432 		str	r3, [r4, #692]
+ 432              	.LVL68:
+ 433              	.L18:
+ 137:Ourtasks/contactor_cmd_msg.c **** 
+ 434              		.loc 1 137 0
+ 435 019c 0023     		movs	r3, #0
+ 436 019e 4FF0FF32 		mov	r2, #-1
+ 437 01a2 04F52A71 		add	r1, r4, #680
+ 438 01a6 0348     		ldr	r0, .L22
+ 439 01a8 0068     		ldr	r0, [r0]
+ 440 01aa FFF7FEFF 		bl	xQueueGenericSend
+ 441              	.LVL69:
+ 139:Ourtasks/contactor_cmd_msg.c **** /* *************************************************************************
+ 442              		.loc 1 139 0
+ 443 01ae 04B0     		add	sp, sp, #16
+ 444              	.LCFI4:
+ 445              		.cfi_def_cfa_offset 32
+ 446              		@ sp needed
+ 447 01b0 BDE8F087 		pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+ 448              	.LVL70:
+ 449              	.L23:
+ 450              		.align	2
+ 451              	.L22:
+ 452 01b4 00000000 		.word	CanTxQHandle
+ 453              		.cfi_endproc
+ 454              	.LFE69:
+ 456              		.text
+ 457              	.Letext0:
+ARM GAS  /tmp/cc3u6O5k.s 			page 13
+
+
+ 458              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 459              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 460              		.file 4 "Ourtasks/iir_filter_lx.h"
+ 461              		.file 5 "Ourwares/common_misc.h"
+ 462              		.file 6 "Ourwares/common_can.h"
+ 463              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 464              		.file 8 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 465              		.file 9 "Middlewares/Third_Party/FreeRTOS/Source/include/timers.h"
+ 466              		.file 10 "Middlewares/Third_Party/FreeRTOS/Source/include/queue.h"
+ 467              		.file 11 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 468              		.file 12 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 469              		.file 13 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h"
+ 470              		.file 14 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_can.h"
+ 471              		.file 15 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h"
+ 472              		.file 16 "Ourtasks/contactor_idx_v_struct.h"
+ 473              		.file 17 "Ourtasks/adc_idx_v_struct.h"
+ 474              		.file 18 "Ourwares/CanTask.h"
+ 475              		.file 19 "Ourwares/can_iface.h"
+ 476              		.file 20 "Ourtasks/ContactorTask.h"
+ 477              		.file 21 "Ourtasks/adcparams.h"
+ 478              		.file 22 "Ourwares/MailboxTask.h"
+ 479              		.file 23 "Ourtasks/cic_filter_l_N2_M3.h"
+ 480              		.file 24 "Drivers/CMSIS/Include/core_cm3.h"
+ARM GAS  /tmp/cc3u6O5k.s 			page 14
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 contactor_cmd_msg.c
+     /tmp/cc3u6O5k.s:20     .text.load4:00000000 $t
+     /tmp/cc3u6O5k.s:24     .text.load4:00000000 load4
+     /tmp/cc3u6O5k.s:51     .text.loadadc:00000000 $t
+     /tmp/cc3u6O5k.s:55     .text.loadadc:00000000 loadadc
+     /tmp/cc3u6O5k.s:105    .text.loadhv:00000000 $t
+     /tmp/cc3u6O5k.s:109    .text.loadhv:00000000 loadhv
+     /tmp/cc3u6O5k.s:169    .text.contactor_cmd_msg_i:00000000 $t
+     /tmp/cc3u6O5k.s:174    .text.contactor_cmd_msg_i:00000000 contactor_cmd_msg_i
+     /tmp/cc3u6O5k.s:207    .text.contactor_cmd_msg_i:0000001c $d
+     /tmp/cc3u6O5k.s:452    .text.contactor_cmd_msg_i:000001b4 $d
+                     .debug_frame:00000010 $d
+     /tmp/cc3u6O5k.s:216    .text.contactor_cmd_msg_i:00000025 $d
+     /tmp/cc3u6O5k.s:216    .text.contactor_cmd_msg_i:00000026 $t
+
+UNDEFINED SYMBOLS
+__aeabi_d2f
+__aeabi_ui2d
+__aeabi_dmul
+__aeabi_i2d
+__aeabi_ddiv
+__aeabi_dsub
+__aeabi_dadd
+xQueueGenericSend
+CanTxQHandle

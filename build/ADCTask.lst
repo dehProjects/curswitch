@@ -1,0 +1,438 @@
+ARM GAS  /tmp/ccx5MpaH.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"ADCTask.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.StartADCTask,"ax",%progbits
+  20              		.align	2
+  21              		.global	StartADCTask
+  22              		.thumb
+  23              		.thumb_func
+  25              	StartADCTask:
+  26              	.LFB70:
+  27              		.file 1 "Ourwares/ADCTask.c"
+   1:Ourwares/ADCTask.c **** /******************************************************************************
+   2:Ourwares/ADCTask.c **** * File Name          : ADCTask.c
+   3:Ourwares/ADCTask.c **** * Date First Issued  : 02/01/2019
+   4:Ourwares/ADCTask.c **** * Description        : Processing ADC readings after ADC/DMA issues interrupt
+   5:Ourwares/ADCTask.c **** *******************************************************************************/
+   6:Ourwares/ADCTask.c **** 
+   7:Ourwares/ADCTask.c **** #include "FreeRTOS.h"
+   8:Ourwares/ADCTask.c **** #include "task.h"
+   9:Ourwares/ADCTask.c **** #include "cmsis_os.h"
+  10:Ourwares/ADCTask.c **** #include "malloc.h"
+  11:Ourwares/ADCTask.c **** 
+  12:Ourwares/ADCTask.c **** #include "ADCTask.h"
+  13:Ourwares/ADCTask.c **** #include "adctask.h"
+  14:Ourwares/ADCTask.c **** #include "morse.h"
+  15:Ourwares/ADCTask.c **** #include "adcfastsum16.h"
+  16:Ourwares/ADCTask.c **** #include "adcparams.h"
+  17:Ourwares/ADCTask.c **** #include "ContactorTask.h"
+  18:Ourwares/ADCTask.c **** #include "adcextendsum.h"
+  19:Ourwares/ADCTask.c **** 
+  20:Ourwares/ADCTask.c **** void StartADCTask(void const * argument);
+  21:Ourwares/ADCTask.c **** 
+  22:Ourwares/ADCTask.c **** uint32_t adcsumdb[6]; // debug
+  23:Ourwares/ADCTask.c **** uint32_t adcdbctr = 0;// debug
+  24:Ourwares/ADCTask.c **** 
+  25:Ourwares/ADCTask.c **** osThreadId ADCTaskHandle;
+  26:Ourwares/ADCTask.c **** 
+  27:Ourwares/ADCTask.c **** extern ADC_HandleTypeDef hadc1;
+  28:Ourwares/ADCTask.c **** 
+  29:Ourwares/ADCTask.c **** extern osThreadId ContactorTaskHandle;
+  30:Ourwares/ADCTask.c **** 
+  31:Ourwares/ADCTask.c **** /* *************************************************************************
+ARM GAS  /tmp/ccx5MpaH.s 			page 2
+
+
+  32:Ourwares/ADCTask.c ****  * osThreadId xADCTaskCreate(uint32_t taskpriority);
+  33:Ourwares/ADCTask.c ****  * @brief	: Create task; task handle created is global for all to enjoy!
+  34:Ourwares/ADCTask.c ****  * @param	: taskpriority = Task priority (just as it says!)
+  35:Ourwares/ADCTask.c ****  * @return	: ADCTaskHandle
+  36:Ourwares/ADCTask.c ****  * *************************************************************************/
+  37:Ourwares/ADCTask.c **** osThreadId xADCTaskCreate(uint32_t taskpriority)
+  38:Ourwares/ADCTask.c **** {
+  39:Ourwares/ADCTask.c ****  	osThreadDef(ADCTask, StartADCTask, osPriorityNormal, 0, 128);
+  40:Ourwares/ADCTask.c **** 	ADCTaskHandle = osThreadCreate(osThread(ADCTask), NULL);
+  41:Ourwares/ADCTask.c **** 	vTaskPrioritySet( ADCTaskHandle, taskpriority );
+  42:Ourwares/ADCTask.c **** 	return ADCTaskHandle;
+  43:Ourwares/ADCTask.c **** 
+  44:Ourwares/ADCTask.c **** }
+  45:Ourwares/ADCTask.c **** /* *************************************************************************
+  46:Ourwares/ADCTask.c ****  * void StartADCTask(void const * argument);
+  47:Ourwares/ADCTask.c ****  *	@brief	: Task startup
+  48:Ourwares/ADCTask.c ****  * *************************************************************************/
+  49:Ourwares/ADCTask.c **** void StartADCTask(void const * argument)
+  50:Ourwares/ADCTask.c **** {
+  28              		.loc 1 50 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 8
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              	.LVL0:
+  33 0000 70B5     		push	{r4, r5, r6, lr}
+  34              	.LCFI0:
+  35              		.cfi_def_cfa_offset 16
+  36              		.cfi_offset 4, -16
+  37              		.cfi_offset 5, -12
+  38              		.cfi_offset 6, -8
+  39              		.cfi_offset 14, -4
+  40 0002 82B0     		sub	sp, sp, #8
+  41              	.LCFI1:
+  42              		.cfi_def_cfa_offset 24
+  51:Ourwares/ADCTask.c **** 	#define TSK02BIT02	(1 << 0)  // Task notification bit for ADC dma 1st 1/2 (adctask.c)
+  52:Ourwares/ADCTask.c **** 	#define TSK02BIT03	(1 << 1)  // Task notification bit for ADC dma end (adctask.c)
+  53:Ourwares/ADCTask.c **** 
+  54:Ourwares/ADCTask.c **** 	uint16_t* pdma;
+  55:Ourwares/ADCTask.c **** 
+  56:Ourwares/ADCTask.c **** 	/* A notification copies the internal notification word to this. */
+  57:Ourwares/ADCTask.c **** 	uint32_t noteval = 0;    // Receives notification word upon an API notify
+  43              		.loc 1 57 0
+  44 0004 02AB     		add	r3, sp, #8
+  45 0006 0022     		movs	r2, #0
+  46 0008 43F8042D 		str	r2, [r3, #-4]!
+  47              	.LVL1:
+  58:Ourwares/ADCTask.c **** 
+  59:Ourwares/ADCTask.c **** 	/* notification bits processed after a 'Wait. */
+  60:Ourwares/ADCTask.c **** 	uint32_t noteused = 0;
+  61:Ourwares/ADCTask.c **** 
+  62:Ourwares/ADCTask.c **** 	/* Get buffers, "our" control block, and ==>START<== ADC/DMA running. */
+  63:Ourwares/ADCTask.c **** 	struct ADCDMATSKBLK* pblk = adctask_init(&hadc1,TSK02BIT02,TSK02BIT03,&noteval);
+  48              		.loc 1 63 0
+  49 000c 0222     		movs	r2, #2
+  50 000e 0121     		movs	r1, #1
+  51 0010 2748     		ldr	r0, .L8
+  52              	.LVL2:
+ARM GAS  /tmp/ccx5MpaH.s 			page 3
+
+
+  53 0012 FFF7FEFF 		bl	adctask_init
+  54              	.LVL3:
+  64:Ourwares/ADCTask.c **** 	if (pblk == NULL) {morse_trap(15);}
+  55              		.loc 1 64 0
+  56 0016 0546     		mov	r5, r0
+  57 0018 10B9     		cbnz	r0, .L2
+  58              		.loc 1 64 0 is_stmt 0 discriminator 1
+  59 001a 0F20     		movs	r0, #15
+  60              	.LVL4:
+  61 001c FFF7FEFF 		bl	morse_trap
+  62              	.LVL5:
+  63              	.L2:
+  50:Ourwares/ADCTask.c **** 	#define TSK02BIT02	(1 << 0)  // Task notification bit for ADC dma 1st 1/2 (adctask.c)
+  64              		.loc 1 50 0 is_stmt 1
+  65 0020 0024     		movs	r4, #0
+  66              	.LVL6:
+  67              	.L6:
+  65:Ourwares/ADCTask.c **** 
+  66:Ourwares/ADCTask.c ****   /* Infinite loop */
+  67:Ourwares/ADCTask.c ****   for(;;)
+  68:Ourwares/ADCTask.c ****   {
+  69:Ourwares/ADCTask.c **** 		/* Wait for DMA interrupt notification from adctask.c */
+  70:Ourwares/ADCTask.c **** 		xTaskNotifyWait(noteused, 0, &noteval, portMAX_DELAY);
+  68              		.loc 1 70 0
+  69 0022 4FF0FF33 		mov	r3, #-1
+  70 0026 01AA     		add	r2, sp, #4
+  71 0028 0021     		movs	r1, #0
+  72 002a 2046     		mov	r0, r4
+  73 002c FFF7FEFF 		bl	xTaskNotifyWait
+  74              	.LVL7:
+  71:Ourwares/ADCTask.c **** 		noteused = 0;	// Accumulate bits in 'noteval' processed.
+  72:Ourwares/ADCTask.c **** 
+  73:Ourwares/ADCTask.c **** 		/* We handled one, or both, noteval bits */
+  74:Ourwares/ADCTask.c **** 		noteused |= (pblk->notebit1 | pblk->notebit2);
+  75              		.loc 1 74 0
+  76 0030 AC68     		ldr	r4, [r5, #8]
+  77 0032 EB68     		ldr	r3, [r5, #12]
+  78 0034 1C43     		orrs	r4, r4, r3
+  79              	.LVL8:
+  75:Ourwares/ADCTask.c **** 
+  76:Ourwares/ADCTask.c **** 		if (noteval & TSK02BIT02)
+  80              		.loc 1 76 0
+  81 0036 019B     		ldr	r3, [sp, #4]
+  82 0038 13F0010F 		tst	r3, #1
+  83 003c 02D0     		beq	.L3
+  77:Ourwares/ADCTask.c **** 		{
+  78:Ourwares/ADCTask.c **** 			pdma = adc1dmatskblk[0].pdma1; // [0] = adc1
+  84              		.loc 1 78 0
+  85 003e 1D4B     		ldr	r3, .L8+4
+  86 0040 5969     		ldr	r1, [r3, #20]
+  87              	.LVL9:
+  88 0042 01E0     		b	.L4
+  89              	.LVL10:
+  90              	.L3:
+  79:Ourwares/ADCTask.c **** 		}
+  80:Ourwares/ADCTask.c **** 		else
+  81:Ourwares/ADCTask.c **** 		{
+ARM GAS  /tmp/ccx5MpaH.s 			page 4
+
+
+  82:Ourwares/ADCTask.c **** 			pdma = adc1dmatskblk[0].pdma2;
+  91              		.loc 1 82 0
+  92 0044 1B4B     		ldr	r3, .L8+4
+  93 0046 9969     		ldr	r1, [r3, #24]
+  94              	.LVL11:
+  95              	.L4:
+  83:Ourwares/ADCTask.c **** 		}
+  84:Ourwares/ADCTask.c **** 
+  85:Ourwares/ADCTask.c **** 		/* Sum the readings 1/2 of DMA buffer to an array. */
+  86:Ourwares/ADCTask.c **** 		adcfastsum16(&adc1.chan[0], pdma); // Fast in-line addition
+  96              		.loc 1 86 0
+  97 0048 1B4E     		ldr	r6, .L8+8
+  98 004a 3046     		mov	r0, r6
+  99 004c FFF7FEFF 		bl	adcfastsum16
+ 100              	.LVL12:
+  87:Ourwares/ADCTask.c **** 		adc1.ctr += 1; // Update count
+ 101              		.loc 1 87 0
+ 102 0050 A6F50670 		sub	r0, r6, #536
+ 103 0054 D0F8F833 		ldr	r3, [r0, #1016]
+ 104 0058 0133     		adds	r3, r3, #1
+ 105 005a C0F8F833 		str	r3, [r0, #1016]
+  88:Ourwares/ADCTask.c **** 
+  89:Ourwares/ADCTask.c **** #define DEBUGGINGADCREADINGS
+  90:Ourwares/ADCTask.c **** #ifdef DEBUGGINGADCREADINGS
+  91:Ourwares/ADCTask.c **** 		/* Save sum for defaultTask printout for debugging */
+  92:Ourwares/ADCTask.c **** 		adcsumdb[0] = adc1.chan[0].sum;
+ 106              		.loc 1 92 0
+ 107 005e B0F82422 		ldrh	r2, [r0, #548]
+ 108 0062 164B     		ldr	r3, .L8+12
+ 109 0064 1A60     		str	r2, [r3]
+  93:Ourwares/ADCTask.c **** 		adcsumdb[1] = adc1.chan[1].sum;
+ 110              		.loc 1 93 0
+ 111 0066 B0F87422 		ldrh	r2, [r0, #628]
+ 112 006a 5A60     		str	r2, [r3, #4]
+  94:Ourwares/ADCTask.c **** 		adcsumdb[2] = adc1.chan[2].sum;
+ 113              		.loc 1 94 0
+ 114 006c B0F8C422 		ldrh	r2, [r0, #708]
+ 115 0070 9A60     		str	r2, [r3, #8]
+  95:Ourwares/ADCTask.c **** 		adcsumdb[3] = adc1.chan[3].sum;
+ 116              		.loc 1 95 0
+ 117 0072 B0F81423 		ldrh	r2, [r0, #788]
+ 118 0076 DA60     		str	r2, [r3, #12]
+  96:Ourwares/ADCTask.c **** 		adcsumdb[4] = adc1.chan[4].sum;
+ 119              		.loc 1 96 0
+ 120 0078 B0F86423 		ldrh	r2, [r0, #868]
+ 121 007c 1A61     		str	r2, [r3, #16]
+  97:Ourwares/ADCTask.c **** 		adcsumdb[5] = adc1.chan[5].sum;
+ 122              		.loc 1 97 0
+ 123 007e B0F8B423 		ldrh	r2, [r0, #948]
+ 124 0082 5A61     		str	r2, [r3, #20]
+  98:Ourwares/ADCTask.c **** 		adcdbctr += 1;
+ 125              		.loc 1 98 0
+ 126 0084 0E4A     		ldr	r2, .L8+16
+ 127 0086 1368     		ldr	r3, [r2]
+ 128 0088 0133     		adds	r3, r3, #1
+ 129 008a 1360     		str	r3, [r2]
+  99:Ourwares/ADCTask.c **** #endif
+ARM GAS  /tmp/ccx5MpaH.s 			page 5
+
+
+ 100:Ourwares/ADCTask.c **** 
+ 101:Ourwares/ADCTask.c **** 		/* Extended sum for smoothing and display. */
+ 102:Ourwares/ADCTask.c **** 		adcextendsum(&adc1);
+ 130              		.loc 1 102 0
+ 131 008c FFF7FEFF 		bl	adcextendsum
+ 132              	.LVL13:
+ 103:Ourwares/ADCTask.c **** 
+ 104:Ourwares/ADCTask.c **** 		/* Calibrate and filter ADC readings. */
+ 105:Ourwares/ADCTask.c **** 		adcparams_cal();
+ 133              		.loc 1 105 0
+ 134 0090 FFF7FEFF 		bl	adcparams_cal
+ 135              	.LVL14:
+ 106:Ourwares/ADCTask.c **** 
+ 107:Ourwares/ADCTask.c **** 		/* Notify ContactorTask that new readings are ready. */
+ 108:Ourwares/ADCTask.c **** 		if( ContactorTaskHandle == NULL) morse_trap(51); // JIC task has not been created
+ 136              		.loc 1 108 0
+ 137 0094 0B4B     		ldr	r3, .L8+20
+ 138 0096 1B68     		ldr	r3, [r3]
+ 139 0098 13B9     		cbnz	r3, .L5
+ 140              		.loc 1 108 0 is_stmt 0 discriminator 1
+ 141 009a 3320     		movs	r0, #51
+ 142 009c FFF7FEFF 		bl	morse_trap
+ 143              	.LVL15:
+ 144              	.L5:
+ 109:Ourwares/ADCTask.c **** 		
+ 110:Ourwares/ADCTask.c **** 		xTaskNotify(ContactorTaskHandle, CNCTBIT00, eSetBits);
+ 145              		.loc 1 110 0 is_stmt 1
+ 146 00a0 0023     		movs	r3, #0
+ 147 00a2 0122     		movs	r2, #1
+ 148 00a4 1146     		mov	r1, r2
+ 149 00a6 0748     		ldr	r0, .L8+20
+ 150 00a8 0068     		ldr	r0, [r0]
+ 151 00aa FFF7FEFF 		bl	xTaskGenericNotify
+ 152              	.LVL16:
+ 111:Ourwares/ADCTask.c ****   }
+ 153              		.loc 1 111 0
+ 154 00ae B8E7     		b	.L6
+ 155              	.L9:
+ 156              		.align	2
+ 157              	.L8:
+ 158 00b0 00000000 		.word	hadc1
+ 159 00b4 00000000 		.word	adc1dmatskblk
+ 160 00b8 18020000 		.word	adc1+536
+ 161 00bc 00000000 		.word	adcsumdb
+ 162 00c0 00000000 		.word	.LANCHOR0
+ 163 00c4 00000000 		.word	ContactorTaskHandle
+ 164              		.cfi_endproc
+ 165              	.LFE70:
+ 167              		.section	.text.xADCTaskCreate,"ax",%progbits
+ 168              		.align	2
+ 169              		.global	xADCTaskCreate
+ 170              		.thumb
+ 171              		.thumb_func
+ 173              	xADCTaskCreate:
+ 174              	.LFB69:
+  38:Ourwares/ADCTask.c ****  	osThreadDef(ADCTask, StartADCTask, osPriorityNormal, 0, 128);
+ 175              		.loc 1 38 0
+ARM GAS  /tmp/ccx5MpaH.s 			page 6
+
+
+ 176              		.cfi_startproc
+ 177              		@ args = 0, pretend = 0, frame = 32
+ 178              		@ frame_needed = 0, uses_anonymous_args = 0
+ 179              	.LVL17:
+ 180 0000 70B5     		push	{r4, r5, r6, lr}
+ 181              	.LCFI2:
+ 182              		.cfi_def_cfa_offset 16
+ 183              		.cfi_offset 4, -16
+ 184              		.cfi_offset 5, -12
+ 185              		.cfi_offset 6, -8
+ 186              		.cfi_offset 14, -4
+ 187 0002 88B0     		sub	sp, sp, #32
+ 188              	.LCFI3:
+ 189              		.cfi_def_cfa_offset 48
+ 190 0004 0646     		mov	r6, r0
+  39:Ourwares/ADCTask.c **** 	ADCTaskHandle = osThreadCreate(osThread(ADCTask), NULL);
+ 191              		.loc 1 39 0
+ 192 0006 01AC     		add	r4, sp, #4
+ 193 0008 094D     		ldr	r5, .L12
+ 194 000a 0FCD     		ldmia	r5!, {r0, r1, r2, r3}
+ 195              	.LVL18:
+ 196 000c 0FC4     		stmia	r4!, {r0, r1, r2, r3}
+ 197 000e 95E80700 		ldmia	r5, {r0, r1, r2}
+ 198 0012 84E80700 		stmia	r4, {r0, r1, r2}
+  40:Ourwares/ADCTask.c **** 	vTaskPrioritySet( ADCTaskHandle, taskpriority );
+ 199              		.loc 1 40 0
+ 200 0016 0021     		movs	r1, #0
+ 201 0018 01A8     		add	r0, sp, #4
+ 202 001a FFF7FEFF 		bl	osThreadCreate
+ 203              	.LVL19:
+ 204 001e 054C     		ldr	r4, .L12+4
+ 205 0020 2060     		str	r0, [r4]
+  41:Ourwares/ADCTask.c **** 	return ADCTaskHandle;
+ 206              		.loc 1 41 0
+ 207 0022 3146     		mov	r1, r6
+ 208 0024 FFF7FEFF 		bl	vTaskPrioritySet
+ 209              	.LVL20:
+  44:Ourwares/ADCTask.c **** /* *************************************************************************
+ 210              		.loc 1 44 0
+ 211 0028 2068     		ldr	r0, [r4]
+ 212 002a 08B0     		add	sp, sp, #32
+ 213              	.LCFI4:
+ 214              		.cfi_def_cfa_offset 16
+ 215              		@ sp needed
+ 216 002c 70BD     		pop	{r4, r5, r6, pc}
+ 217              	.LVL21:
+ 218              	.L13:
+ 219 002e 00BF     		.align	2
+ 220              	.L12:
+ 221 0030 00000000 		.word	.LANCHOR1
+ 222 0034 00000000 		.word	ADCTaskHandle
+ 223              		.cfi_endproc
+ 224              	.LFE69:
+ 226              		.comm	ADCTaskHandle,4,4
+ 227              		.global	adcdbctr
+ 228              		.comm	adcsumdb,24,4
+ 229              		.section	.rodata
+ARM GAS  /tmp/ccx5MpaH.s 			page 7
+
+
+ 230              		.align	2
+ 231              		.set	.LANCHOR1,. + 0
+ 232              	.LC2:
+ 233 0000 00000000 		.word	.LC0
+ 234 0004 00000000 		.word	StartADCTask
+ 235 0008 0000     		.short	0
+ 236 000a 0000     		.space	2
+ 237 000c 00000000 		.word	0
+ 238 0010 80000000 		.word	128
+ 239 0014 00000000 		.word	0
+ 240 0018 00000000 		.word	0
+ 241              		.section	.bss.adcdbctr,"aw",%nobits
+ 242              		.align	2
+ 243              		.set	.LANCHOR0,. + 0
+ 246              	adcdbctr:
+ 247 0000 00000000 		.space	4
+ 248              		.section	.rodata.str1.4,"aMS",%progbits,1
+ 249              		.align	2
+ 250              	.LC0:
+ 251 0000 41444354 		.ascii	"ADCTask\000"
+ 251      61736B00 
+ 252              		.text
+ 253              	.Letext0:
+ 254              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 255              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 256              		.file 4 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 257              		.file 5 "Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h"
+ 258              		.file 6 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 259              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 260              		.file 8 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 261              		.file 9 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 262              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 263              		.file 11 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_adc.h"
+ 264              		.file 12 "Ourwares/adctask.h"
+ 265              		.file 13 "Ourtasks/iir_filter_lx.h"
+ 266              		.file 14 "Ourtasks/adc_idx_v_struct.h"
+ 267              		.file 15 "Ourtasks/adcparams.h"
+ 268              		.file 16 "Ourtasks/cic_filter_l_N2_M3.h"
+ 269              		.file 17 "Drivers/CMSIS/Include/core_cm3.h"
+ 270              		.file 18 "Ourwares/morse.h"
+ 271              		.file 19 "Ourtasks/adcfastsum16.h"
+ 272              		.file 20 "Ourtasks/adcextendsum.h"
+ARM GAS  /tmp/ccx5MpaH.s 			page 8
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ADCTask.c
+     /tmp/ccx5MpaH.s:20     .text.StartADCTask:00000000 $t
+     /tmp/ccx5MpaH.s:25     .text.StartADCTask:00000000 StartADCTask
+     /tmp/ccx5MpaH.s:158    .text.StartADCTask:000000b0 $d
+                            *COM*:00000018 adcsumdb
+     /tmp/ccx5MpaH.s:168    .text.xADCTaskCreate:00000000 $t
+     /tmp/ccx5MpaH.s:173    .text.xADCTaskCreate:00000000 xADCTaskCreate
+     /tmp/ccx5MpaH.s:221    .text.xADCTaskCreate:00000030 $d
+                            *COM*:00000004 ADCTaskHandle
+     /tmp/ccx5MpaH.s:246    .bss.adcdbctr:00000000 adcdbctr
+     /tmp/ccx5MpaH.s:230    .rodata:00000000 $d
+     /tmp/ccx5MpaH.s:242    .bss.adcdbctr:00000000 $d
+     /tmp/ccx5MpaH.s:249    .rodata.str1.4:00000000 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+adctask_init
+morse_trap
+xTaskNotifyWait
+adcfastsum16
+adcextendsum
+adcparams_cal
+xTaskGenericNotify
+hadc1
+adc1dmatskblk
+adc1
+ContactorTaskHandle
+osThreadCreate
+vTaskPrioritySet

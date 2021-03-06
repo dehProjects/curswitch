@@ -1,0 +1,222 @@
+README.pins
+06/10/2019
+
+
+ .. = hc14 buffer pair
+
+BP header
+  Left row; top-bottom
+
+Port  Board             Functions available         Used as
+B12 MCP1416 DRVR JP9-1  SPI2_NSS  
+B13 FET Q17 JP12-2      SPI2_SCK  TIM1_CH1N
+B14 NC                  SPI2_MISO TIM1_CH2N
+B15 NC                  SPI2_MOSI TIM1_CH3N
+A8  NC                  TIM1_CH1  MCO
+A9  UART1 TX - JP3-5    TIM1_CH2                    USART1_TX ftdi header
+A10 UART1 RX - JP3-4    TIM1_CH3                    USART1_RX ftdi header
+A11 CAN RX              TIM1_CH4                    CAN RX 
+A12 CAN TX                                          CAN TX 
+A15 JTDI
+B3  JTDO
+B4  JNRST
+B5  ..B5BUF                 TIM3_CH2 SPI1_MOSI      TIM3_CH2 coil drive #2 U$25-2
+B6  ..B6BUF                 TIM4_CH1 USART1_TX
+B7  ..B7BUF FET Q20 JP12-4  TIM4_CH2 USART1_RX
+B8  ..B8BUF FET Q18 JP12-3  TIM4_CH3 CAN_RX         TIM4_CH3 coil drive #1 U$26-2
+B9  ..B9BUF                 TIM4_CH4 CAN_TX         
+5V
+GND
+3.3V
+
+BP header
+  Right row: top-bottom
+GND  
+GND  
+3.3V  
+RESET
+B10 MCP1416 DRVR               USART3_TX TIM2_CH2
+B11 NC                         USART3_RX TIM2_CH4    USART3_RX opto-coupler (jumper A)
+B1  OP-AMP U$15                TIM3_CH4
+B0  OP-AMP U$14                TIM3_CH3
+A7  CAN BUS +12 RAW            SPI1_MOSI TIM3_CH2    ADC 12v raw supply
+A6  DIV6 U$23-4 RJ 3X7-20      SPI1_MISO TIM3_CH1    USART3_RX opto-coupler (jumper A)
+A5  DIV5 U$26-4 RJ 3X7-19      SPI1_SCK              Contactor Aux #2
+A4  DIV4           3X7-18 b    SPI1_NSS              ADC current sense #2 spare 
+A3  DIV3           3X7-17 b p  TIM2_CH4 USART2_RX    HV by-pass selection
+A2  DIV2 U$24-4 RJ 3X7-16 b p  TIM2_CH3 USART2_TX    ADC current sense #1 U$24-4 battery
+A1  DIV1 U$25-4 RJ 3X7-15 b p  TIM2_CH2              Contactor Aux #1
+A0  5V SUPPLY                                        ADC 5v supply 
+C15 FET DMN3404 JP11-1
+C14 ..C14BUF FERT Q12 JP12-1 FET Q8 w diode JP16     FET drive for DMOC enable
+C13 LED
+3.3V 
+
+b = midpoint bias or gnd zero ohm options
+p = pullup to 3.3v resistor option 
+
+RJ jack locations
+-----------------------------------------------------
+                                     $U23       $U24 |      
+                            header                   |
+    TOP VIEW                 |-|  ooo                |
+                             |-|                     |
+                             |-|     $U26       $U25 |      
+-----------------------------------------------------
+
+DMOC enable FET--20v 2a, (Digikey) MTM232270LBFCT-ND
+  "ooo" = 3 pin header (JP16)
+   left = + to diode; middle = FET drain; right = gnd
+   left pin and flyback diode not needed for DMOC pull-down
+	R24 = zero ohm;  R16 = 820 ohms; configure for internal pull-up
+
+RJ-11 jack usage--
+
+Pin
+ -1: gnd
+ -2: signal out
+ -3: gnd
+ -4: signal in
+ -5: +5v
+ -6: +12v
+
+$U23
+ -4: USART3_RX opto-coupler
+
+$U24
+ -4: Hall-effect current sensor-battery string
+
+Flying lead 6P6C jack (FLJ) and wiring to Tamura L01Z is intended to
+match the jack wiring for the pcb 'fethe' (in directory
+ ../embed/svn_sensor/hw/trunk/eagle/fethe)
+
+Color coding of Flying Lead Jack (FLJ), purchased 6P6C cables, and
+Blue Pill wiring--
+ 
+ RJ11          Phone
+ Pin desc FLJ  Cable 
+1 GND FET wht  gry   not used
+2 FET DRV blk  yel   not used
+3 HE GND  red  grn   Tamura HE 
+4 HE SIG  grn  red   Tamura HE
+5 +5v     yel  blk   Tamura HE
+6 +12V    blu  wht   not used
+
+$U26
+ -2: TIM4_CH3 coil drive #1
+ -4: Contactor Aux #2
+
+$U25
+ -2: TIM3_CH2 coil drive #2
+ -4: Contactor Aux #1
+
+//Jumper from $U2 pin 15 (center of three) to B11 
+//  which connects pin 4 of $U24 to B11
+//  which connects BP sensor usart3 TX to this usart3 RX
+
+Header top view--
+ Seven rows, three columns
+ Left column   = gnd
+ Middle column = signal
+ Right column  = +5v
+
+x x x
+x x x
+b c x
+d e f 
+x x x
+x x x
+x a x
+
+a is convenient for jumper wire from $U2 (described above).
+
+bc = jumper to signal program to by-pass high voltage sensing
+  b = gnd; c = PA3 configured as i/o input, with pull up.
+
+def = PA4 configured ADC, spare current sensor
+  b = gnd; e = signal; f = +5v
+
+
+
+Color coding of Flying Lead Jack (FLJ), purchased 6P6C cables, and
+Blue Pill wiring--
+
+Pin desc  FLJ  Cable BPill
+1 GND FET wht  gry   --
+2 FET DRV blk  yel   --
+3 HE GND  red  grn   blk
+4 HE SIG  grn  red   grn
+5 +5v     yel  blk   red
+6 +12V    blu  wht   --
+
+
+Part values and board mods--
+
+1. LM7805
+
+The dc-dc switcher resistor set to give about 7v.
+The LM7805 smooths out the switche ripple for less
+ADC jitter.
+
+Rdc 2.12K -> 7.04v  (used 2.2K?)
+
+2. Population parts
+
+5v supply divider (A0)
+R3 2.2K to gnd
+R4 1.8K signal
+
+12v raw supply divider (A7)
+R11 2.2K to gnd
+R12 10K signal
+
+Aux #2 (A5)
+R14 10K series
+R45 10K 3.3v pullup
+
+Aux #1 (A1)
+R18 10K series
+R44 10K 3.3v pullup
+
+ADC current sense #1 (A2)
+R9  8.2K via R21 to gnd
+R10 6.8K signal
+R21 Zero to gnd
+
+HV by-pass selection (A3)
+2 pin hdr for jumper
+R16 8.2K series (protection)
+R24 zero via pin hdr to gnd
+
+ADC current sense #2 spare (A4)
+R7 8.2K via R40 to gnd
+R8 6.8K signal
+R40 zero to gnd
+
+Q8 FET DMOC enable
+MTM232270LBF 20v 2a
+
+HC14 buffering
+IC1
+IC2
+
+Input protection
+R1 1 ohm 1/4w
+D 1N4007
+
+By-pass caps
+C1 100u 50v
+C2 100u 50v
+C5,6,7 0.1u
+
+5v isolation
+BEAD
+
+3. Additional hacks--
+
+Pull-downs to bridge FET enables during bootup
+A0 100K - gnd
+B8 100K - gnd
+B5 100K - gnd
+
+

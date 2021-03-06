@@ -1,0 +1,951 @@
+ARM GAS  /tmp/ccjtZxcX.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"SerialTaskSend.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.StartSerialTaskSend,"ax",%progbits
+  20              		.align	2
+  21              		.global	StartSerialTaskSend
+  22              		.thumb
+  23              		.thumb_func
+  25              	StartSerialTaskSend:
+  26              	.LFB70:
+  27              		.file 1 "Ourwares/SerialTaskSend.c"
+   1:Ourwares/SerialTaskSend.c **** /******************************************************************************
+   2:Ourwares/SerialTaskSend.c **** * File Name          : SerialTaskSend.c
+   3:Ourwares/SerialTaskSend.c **** * Date First Issued  : 12/09/2018
+   4:Ourwares/SerialTaskSend.c **** * Description        : Multiple task serial output using FreeRTOS/ST HAL
+   5:Ourwares/SerialTaskSend.c **** *******************************************************************************/
+   6:Ourwares/SerialTaskSend.c **** 
+   7:Ourwares/SerialTaskSend.c **** #include "FreeRTOS.h"
+   8:Ourwares/SerialTaskSend.c **** #include "task.h"
+   9:Ourwares/SerialTaskSend.c **** #include "queue.h"
+  10:Ourwares/SerialTaskSend.c **** #include "cmsis_os.h"
+  11:Ourwares/SerialTaskSend.c **** #include "malloc.h"
+  12:Ourwares/SerialTaskSend.c **** 
+  13:Ourwares/SerialTaskSend.c **** #include "SerialTaskSend.h"
+  14:Ourwares/SerialTaskSend.c **** 
+  15:Ourwares/SerialTaskSend.c **** /*
+  16:Ourwares/SerialTaskSend.c **** Goals: 
+  17:Ourwares/SerialTaskSend.c **** - Use the HAl driver unmodified
+  18:Ourwares/SerialTaskSend.c ****   .  Issue: the interrupt callback callback is common
+  19:Ourwares/SerialTaskSend.c ****      to all uarts and carries a uart control block
+  20:Ourwares/SerialTaskSend.c ****      pointer as an argument.
+  21:Ourwares/SerialTaskSend.c **** 
+  22:Ourwares/SerialTaskSend.c **** - (Maybe!) use same scheme with usb CDC.  Maybe same code?
+  23:Ourwares/SerialTaskSend.c **** 
+  24:Ourwares/SerialTaskSend.c **** - Handle 'n' uart/usarts 
+  25:Ourwares/SerialTaskSend.c ****   .  So far, three have been used, so allowing for six
+  26:Ourwares/SerialTaskSend.c ****      (stm32F407) may be overkill, but later stm32 versions
+  27:Ourwares/SerialTaskSend.c ****      may allow even more.
+  28:Ourwares/SerialTaskSend.c **** 
+  29:Ourwares/SerialTaskSend.c **** - FreeRTOS can output serial data from multiple tasks
+  30:Ourwares/SerialTaskSend.c **** 
+  31:Ourwares/SerialTaskSend.c **** - Buffering:
+ARM GAS  /tmp/ccjtZxcX.s 			page 2
+
+
+  32:Ourwares/SerialTaskSend.c ****   .  Not depend on time before reusing a buffer, therefore
+  33:Ourwares/SerialTaskSend.c ****      interrupts need to drive it.
+  34:Ourwares/SerialTaskSend.c ****   .  Use a circular buffer that holds pointers
+  35:Ourwares/SerialTaskSend.c ****      and handles to the originating task & task buffer.
+  36:Ourwares/SerialTaskSend.c ****      .. copying char-by-char wasteful so use pointer control block
+  37:Ourwares/SerialTaskSend.c ****      .. Multiple buffers for multiple uarts
+  38:Ourwares/SerialTaskSend.c ****   .  Use source task's buffer and notify source task
+  39:Ourwares/SerialTaskSend.c ****      when the buffer has been sent, using
+  40:Ourwares/SerialTaskSend.c ****        'xTaskNotifyFromISR'
+  41:Ourwares/SerialTaskSend.c **** 
+  42:Ourwares/SerialTaskSend.c **** Scheme:
+  43:Ourwares/SerialTaskSend.c **** 
+  44:Ourwares/SerialTaskSend.c **** - Initialization:
+  45:Ourwares/SerialTaskSend.c ****   .  Create, or add, to a linked list with pointer to next
+  46:Ourwares/SerialTaskSend.c ****      block, uart/usart handle, and pointers to a circular
+  47:Ourwares/SerialTaskSend.c ****      buffer calloc'ed for the number of task buffers to be used.
+  48:Ourwares/SerialTaskSend.c ****      This done for each uart/usart implemented.
+  49:Ourwares/SerialTaskSend.c **** 
+  50:Ourwares/SerialTaskSend.c **** - Usage:
+  51:Ourwares/SerialTaskSend.c ****   .  A task generates the bytes to be sent in a buffer.
+  52:Ourwares/SerialTaskSend.c ****   .  A buffer control block is initialized with the 
+  53:Ourwares/SerialTaskSend.c ****      task handle, uart/usart handle, buffer pointer, and
+  54:Ourwares/SerialTaskSend.c ****      number of bytes to be sent (size).  (All but the size 
+  55:Ourwares/SerialTaskSend.c ****      can be initialized before the task endless loop begins.)
+  56:Ourwares/SerialTaskSend.c ****   .  The buffer control block (bcb) is sent to this routine's queue.
+  57:Ourwares/SerialTaskSend.c ****      This routine removes the bcb from the queue and adds it
+  58:Ourwares/SerialTaskSend.c ****      to the circular buffer for the uart/usart, then attempts
+  59:Ourwares/SerialTaskSend.c ****      to send it with the HAL routine.  The HAL routine rejects
+  60:Ourwares/SerialTaskSend.c ****      the attempt if it is already busy.
+  61:Ourwares/SerialTaskSend.c ****   .  Upon interrupt, the interrupt callback routine checks 
+  62:Ourwares/SerialTaskSend.c ****      the circular buffer for the uart/usart causing the completion
+  63:Ourwares/SerialTaskSend.c ****      of the sending interrupt.  
+  64:Ourwares/SerialTaskSend.c ****      .. It issues a "notification" to the task identified in the
+  65:Ourwares/SerialTaskSend.c ****         circular buffer block, so that the originating task can
+  66:Ourwares/SerialTaskSend.c ****         reuse the buffer.
+  67:Ourwares/SerialTaskSend.c ****      .. It "removes" (moves the pointer) the bcb from the circular
+  68:Ourwares/SerialTaskSend.c ****         buffer.  If more bcb's are in the circular buffer, it
+  69:Ourwares/SerialTaskSend.c ****         starts the HAL routine with the next bcb.
+  70:Ourwares/SerialTaskSend.c ****            
+  71:Ourwares/SerialTaskSend.c **** Note: If a uart/usart is not called from multiple tasks, i.e.
+  72:Ourwares/SerialTaskSend.c ****      just one task uses the usart/usart, and there is no need
+  73:Ourwares/SerialTaskSend.c ****      to overlap processing in that task with more than one
+  74:Ourwares/SerialTaskSend.c ****      output buffer, then this routine does not need to be used.
+  75:Ourwares/SerialTaskSend.c **** 
+  76:Ourwares/SerialTaskSend.c **** Multiple tasks can place "struct SERIALSENDTASKBCB" items (BCB) in a queue. 
+  77:Ourwares/SerialTaskSend.c **** The BCB holds:
+  78:Ourwares/SerialTaskSend.c ****  - Originating task handle
+  79:Ourwares/SerialTaskSend.c ****  - uart/usart control block pointer
+  80:Ourwares/SerialTaskSend.c ****  - buffer pointer
+  81:Ourwares/SerialTaskSend.c ****  - buffer size
+  82:Ourwares/SerialTaskSend.c ****  - uart|usart flag
+  83:Ourwares/SerialTaskSend.c ****  - bits for notifying originating task when the buffer has been sent, (so
+  84:Ourwares/SerialTaskSend.c ****      that the originating task can reuse the buffer).
+  85:Ourwares/SerialTaskSend.c **** 
+  86:Ourwares/SerialTaskSend.c **** A circular buffer of BCBs is created for each uart/usart.  The size of this
+  87:Ourwares/SerialTaskSend.c **** circular buffer must be at least as large as the number of buffers of
+  88:Ourwares/SerialTaskSend.c **** the tasks using this routine.
+ARM GAS  /tmp/ccjtZxcX.s 			page 3
+
+
+  89:Ourwares/SerialTaskSend.c **** 
+  90:Ourwares/SerialTaskSend.c **** 
+  91:Ourwares/SerialTaskSend.c **** 
+  92:Ourwares/SerialTaskSend.c **** */
+  93:Ourwares/SerialTaskSend.c **** 
+  94:Ourwares/SerialTaskSend.c **** 
+  95:Ourwares/SerialTaskSend.c **** /* Task */
+  96:Ourwares/SerialTaskSend.c **** #define SSPRIORITY 1	// Priority for this task (0 = Normal, -3 = Idle)
+  97:Ourwares/SerialTaskSend.c **** 
+  98:Ourwares/SerialTaskSend.c **** //static uint32_t SerialTaskSendBuffer[ 64 ];
+  99:Ourwares/SerialTaskSend.c **** 
+ 100:Ourwares/SerialTaskSend.c **** //static osStaticThreadDef_t SerialTaskSendControlBlock;
+ 101:Ourwares/SerialTaskSend.c **** 
+ 102:Ourwares/SerialTaskSend.c **** osThreadId SerialTaskHandle = NULL;
+ 103:Ourwares/SerialTaskSend.c **** 
+ 104:Ourwares/SerialTaskSend.c **** 
+ 105:Ourwares/SerialTaskSend.c **** /* Queue */
+ 106:Ourwares/SerialTaskSend.c **** #define QUEUESIZE 16	// Total size of bcb's tasks can queue up
+ 107:Ourwares/SerialTaskSend.c **** 
+ 108:Ourwares/SerialTaskSend.c **** osMessageQId SerialTaskSendQHandle;
+ 109:Ourwares/SerialTaskSend.c **** //static uint8_t SerialTaskSendQBuffer[ QUEUESIZE * sizeof( struct SERIALSENDTASKBCB ) ];
+ 110:Ourwares/SerialTaskSend.c **** //static osStaticMessageQDef_t SerialTaskSendQCB;
+ 111:Ourwares/SerialTaskSend.c **** 
+ 112:Ourwares/SerialTaskSend.c **** /* Pattern
+ 113:Ourwares/SerialTaskSend.c **** osMessageQId testQueue01Handle;
+ 114:Ourwares/SerialTaskSend.c **** uint8_t myQueue01Buffer[ 16 * sizeof( uint16_t ) ];
+ 115:Ourwares/SerialTaskSend.c **** osStaticMessageQDef_t myQueue01ControlBlock;
+ 116:Ourwares/SerialTaskSend.c **** */
+ 117:Ourwares/SerialTaskSend.c **** 
+ 118:Ourwares/SerialTaskSend.c **** /* Serial Send Cir Buf: Block with pointers into the circular buffer of pointers. */
+ 119:Ourwares/SerialTaskSend.c **** struct SSCIRBUF
+ 120:Ourwares/SerialTaskSend.c **** {
+ 121:Ourwares/SerialTaskSend.c **** 	struct SSCIRBUF* pnext;
+ 122:Ourwares/SerialTaskSend.c **** 	struct SERIALSENDTASKBCB** pbegin;
+ 123:Ourwares/SerialTaskSend.c **** 	struct SERIALSENDTASKBCB** pend;
+ 124:Ourwares/SerialTaskSend.c **** 	struct SERIALSENDTASKBCB** padd;
+ 125:Ourwares/SerialTaskSend.c **** 	struct SERIALSENDTASKBCB** ptake;
+ 126:Ourwares/SerialTaskSend.c **** 	UART_HandleTypeDef* phuart;
+ 127:Ourwares/SerialTaskSend.c **** 	int8_t	dmaflag;           // 0 = char-by-char; 1 = dma
+ 128:Ourwares/SerialTaskSend.c **** };
+ 129:Ourwares/SerialTaskSend.c **** 
+ 130:Ourwares/SerialTaskSend.c **** /* Points to first of list of struct SSCIRBUF */
+ 131:Ourwares/SerialTaskSend.c **** struct SSCIRBUF* pbhd = NULL;
+ 132:Ourwares/SerialTaskSend.c **** 
+ 133:Ourwares/SerialTaskSend.c **** 
+ 134:Ourwares/SerialTaskSend.c **** /* *************************************************************************
+ 135:Ourwares/SerialTaskSend.c ****  * BaseType_t xSerialTaskSendAdd(UART_HandleTypeDef* p, uint16_t qsize, int8_t dmaflag);
+ 136:Ourwares/SerialTaskSend.c ****  *	@brief	: Add a uart and circular buffer to a linked list
+ 137:Ourwares/SerialTaskSend.c ****  * @param	: p = pointer to uart control block
+ 138:Ourwares/SerialTaskSend.c ****  * @param	: qsize = total number of buffer control blocks circular buffer can hold
+ 139:Ourwares/SerialTaskSend.c ****  * @param	: dmaflag = 0 = char-by-char, 1 = dma
+ 140:Ourwares/SerialTaskSend.c ****  * @return	: 0 = OK, -1 = failed 1st calloc, -2 = failed 2nd calloc
+ 141:Ourwares/SerialTaskSend.c ****  * *************************************************************************/
+ 142:Ourwares/SerialTaskSend.c **** BaseType_t xSerialTaskSendAdd(UART_HandleTypeDef* p, uint16_t qsize, int8_t dmaflag)
+ 143:Ourwares/SerialTaskSend.c **** {
+ 144:Ourwares/SerialTaskSend.c **** 	struct SSCIRBUF* ptmp1;
+ 145:Ourwares/SerialTaskSend.c **** 	struct SSCIRBUF* ptmp2;
+ARM GAS  /tmp/ccjtZxcX.s 			page 4
+
+
+ 146:Ourwares/SerialTaskSend.c **** 	struct SERIALSENDTASKBCB** pssb;
+ 147:Ourwares/SerialTaskSend.c **** 
+ 148:Ourwares/SerialTaskSend.c **** taskENTER_CRITICAL();
+ 149:Ourwares/SerialTaskSend.c **** 	/* Add block with circular buffer pointers for this uart/usart to list */
+ 150:Ourwares/SerialTaskSend.c **** 	ptmp1 = (struct SSCIRBUF*)calloc(1, sizeof(struct SSCIRBUF));
+ 151:Ourwares/SerialTaskSend.c **** 	if (ptmp1 == NULL) {taskEXIT_CRITICAL();return -1;}
+ 152:Ourwares/SerialTaskSend.c **** 	if (pbhd  == NULL) // Is this the first?
+ 153:Ourwares/SerialTaskSend.c **** 	{ // Yes
+ 154:Ourwares/SerialTaskSend.c **** 		pbhd = ptmp1;	// Point head to first on list
+ 155:Ourwares/SerialTaskSend.c **** 		ptmp1->pnext = ptmp1; // Point first item on list to self
+ 156:Ourwares/SerialTaskSend.c **** 	}
+ 157:Ourwares/SerialTaskSend.c **** 	else
+ 158:Ourwares/SerialTaskSend.c **** 	{ // No, one or more have been added
+ 159:Ourwares/SerialTaskSend.c **** 		/* Find end of list */
+ 160:Ourwares/SerialTaskSend.c **** 		ptmp2 = pbhd;	// Start at head
+ 161:Ourwares/SerialTaskSend.c **** 		while (ptmp2 != ptmp2->pnext) ptmp2 = ptmp2->pnext;
+ 162:Ourwares/SerialTaskSend.c **** 		ptmp2->pnext = ptmp1; // Last block points to added block
+ 163:Ourwares/SerialTaskSend.c **** 		ptmp1->pnext = ptmp1; // Added block points to self
+ 164:Ourwares/SerialTaskSend.c **** 	}
+ 165:Ourwares/SerialTaskSend.c **** 
+ 166:Ourwares/SerialTaskSend.c **** 	/* Get memory for circular buffer of buffer control blocks (bcb) */	
+ 167:Ourwares/SerialTaskSend.c **** 	pssb = (struct SERIALSENDTASKBCB**)calloc(qsize, sizeof(struct SERIALSENDTASKBCB*));
+ 168:Ourwares/SerialTaskSend.c **** 	if ( pssb == NULL) {taskEXIT_CRITICAL();return -2;}
+ 169:Ourwares/SerialTaskSend.c **** 
+ 170:Ourwares/SerialTaskSend.c **** 	/* Initialize pointers for circular buffer */
+ 171:Ourwares/SerialTaskSend.c **** 	// ptmp1 points to last item on list
+ 172:Ourwares/SerialTaskSend.c **** 	ptmp1->pbegin  = pssb;
+ 173:Ourwares/SerialTaskSend.c **** 	ptmp1->padd    = pssb;
+ 174:Ourwares/SerialTaskSend.c **** 	ptmp1->ptake   = pssb;
+ 175:Ourwares/SerialTaskSend.c **** 	ptmp1->pend    = pssb + qsize;
+ 176:Ourwares/SerialTaskSend.c **** 	ptmp1->phuart  = p;
+ 177:Ourwares/SerialTaskSend.c **** 	ptmp1->dmaflag = dmaflag;
+ 178:Ourwares/SerialTaskSend.c **** taskEXIT_CRITICAL();
+ 179:Ourwares/SerialTaskSend.c **** 	return 0;
+ 180:Ourwares/SerialTaskSend.c **** }
+ 181:Ourwares/SerialTaskSend.c **** 
+ 182:Ourwares/SerialTaskSend.c **** /* *************************************************************************
+ 183:Ourwares/SerialTaskSend.c ****  * void StartSerialTaskSend(void const * argument);
+ 184:Ourwares/SerialTaskSend.c ****  *	@brief	: Task startup
+ 185:Ourwares/SerialTaskSend.c ****  * *************************************************************************/
+ 186:Ourwares/SerialTaskSend.c **** void StartSerialTaskSend(void* argument1)
+ 187:Ourwares/SerialTaskSend.c **** {
+  28              		.loc 1 187 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 8
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              	.LVL0:
+  33 0000 00B5     		push	{lr}
+  34              	.LCFI0:
+  35              		.cfi_def_cfa_offset 4
+  36              		.cfi_offset 14, -4
+  37 0002 83B0     		sub	sp, sp, #12
+  38              	.LCFI1:
+  39              		.cfi_def_cfa_offset 16
+  40              	.LVL1:
+  41              	.L2:
+ 188:Ourwares/SerialTaskSend.c **** 	BaseType_t Qret;	// queue receive return
+ARM GAS  /tmp/ccjtZxcX.s 			page 5
+
+
+ 189:Ourwares/SerialTaskSend.c **** 	struct SERIALSENDTASKBCB*  pssb; // Copied item from queue
+ 190:Ourwares/SerialTaskSend.c **** 	struct SSCIRBUF* ptmp;	// Circular buffer pointer block pointer
+ 191:Ourwares/SerialTaskSend.c **** 
+ 192:Ourwares/SerialTaskSend.c ****   /* Infinite loop */
+ 193:Ourwares/SerialTaskSend.c ****   for(;;)
+ 194:Ourwares/SerialTaskSend.c ****   {
+ 195:Ourwares/SerialTaskSend.c **** 		do
+ 196:Ourwares/SerialTaskSend.c **** 		{
+ 197:Ourwares/SerialTaskSend.c **** 		/* Wait indefinitely for someone to load something into the queue */
+ 198:Ourwares/SerialTaskSend.c **** 		/* Skip over empty returns, and NULL pointers that would cause trouble */
+ 199:Ourwares/SerialTaskSend.c **** 			Qret = xQueueReceive(SerialTaskSendQHandle,&pssb,portMAX_DELAY);
+  42              		.loc 1 199 0
+  43 0004 0023     		movs	r3, #0
+  44 0006 4FF0FF32 		mov	r2, #-1
+  45 000a 01A9     		add	r1, sp, #4
+  46 000c 1D48     		ldr	r0, .L12
+  47 000e 0068     		ldr	r0, [r0]
+  48 0010 FFF7FEFF 		bl	xQueueGenericReceive
+  49              	.LVL2:
+ 200:Ourwares/SerialTaskSend.c **** 			if (Qret == pdPASS) // Break loop if not empty
+  50              		.loc 1 200 0
+  51 0014 0128     		cmp	r0, #1
+  52 0016 06D0     		beq	.L3
+ 201:Ourwares/SerialTaskSend.c **** 				break;
+ 202:Ourwares/SerialTaskSend.c **** 		} while ((pssb->phuart == NULL) || (pssb->tskhandle == NULL));
+  53              		.loc 1 202 0
+  54 0018 019B     		ldr	r3, [sp, #4]
+  55 001a 1A68     		ldr	r2, [r3]
+  56 001c 002A     		cmp	r2, #0
+  57 001e F1D0     		beq	.L2
+  58              		.loc 1 202 0 is_stmt 0 discriminator 1
+  59 0020 5B68     		ldr	r3, [r3, #4]
+  60 0022 002B     		cmp	r3, #0
+  61 0024 EED0     		beq	.L2
+  62              	.L3:
+ 203:Ourwares/SerialTaskSend.c **** 
+ 204:Ourwares/SerialTaskSend.c **** 		/* Add Q item to linked list for this uart/usart */
+ 205:Ourwares/SerialTaskSend.c **** 
+ 206:Ourwares/SerialTaskSend.c **** 		/* Find uart/usart list for this item from Q */
+ 207:Ourwares/SerialTaskSend.c **** 		ptmp = pbhd;
+  63              		.loc 1 207 0 is_stmt 1
+  64 0026 184B     		ldr	r3, .L12+4
+  65 0028 1B68     		ldr	r3, [r3]
+  66              	.LVL3:
+ 208:Ourwares/SerialTaskSend.c **** 		while (ptmp->phuart != pssb->phuart) ptmp = ptmp->pnext;
+  67              		.loc 1 208 0
+  68 002a 00E0     		b	.L5
+  69              	.LVL4:
+  70              	.L6:
+  71              		.loc 1 208 0 is_stmt 0 discriminator 2
+  72 002c 1B68     		ldr	r3, [r3]
+  73              	.LVL5:
+  74              	.L5:
+  75              		.loc 1 208 0 discriminator 1
+  76 002e 5969     		ldr	r1, [r3, #20]
+  77 0030 0198     		ldr	r0, [sp, #4]
+  78 0032 0268     		ldr	r2, [r0]
+ARM GAS  /tmp/ccjtZxcX.s 			page 6
+
+
+  79 0034 9142     		cmp	r1, r2
+  80 0036 F9D1     		bne	.L6
+ 209:Ourwares/SerialTaskSend.c **** 
+ 210:Ourwares/SerialTaskSend.c **** 	 	if ((pssb->pbuf == NULL) || (pssb->size == 0))
+  81              		.loc 1 210 0 is_stmt 1
+  82 0038 C268     		ldr	r2, [r0, #12]
+  83 003a 0AB1     		cbz	r2, .L7
+  84              		.loc 1 210 0 is_stmt 0 discriminator 1
+  85 003c 028A     		ldrh	r2, [r0, #16]
+  86 003e 32B9     		cbnz	r2, .L8
+  87              	.L7:
+ 211:Ourwares/SerialTaskSend.c **** 		{ // Here, HAL is going to reject it
+ 212:Ourwares/SerialTaskSend.c ****   			/* Release buffer just sent so it can be reused. */
+ 213:Ourwares/SerialTaskSend.c **** 			xSemaphoreGive(pssb->semaphore);
+  88              		.loc 1 213 0 is_stmt 1
+  89 0040 0023     		movs	r3, #0
+  90              	.LVL6:
+  91 0042 1A46     		mov	r2, r3
+  92 0044 1946     		mov	r1, r3
+  93 0046 8068     		ldr	r0, [r0, #8]
+  94 0048 FFF7FEFF 		bl	xQueueGenericSend
+  95              	.LVL7:
+  96 004c DAE7     		b	.L2
+  97              	.LVL8:
+  98              	.L8:
+ 214:Ourwares/SerialTaskSend.c **** 		}
+ 215:Ourwares/SerialTaskSend.c **** 		else
+ 216:Ourwares/SerialTaskSend.c **** 		{
+ 217:Ourwares/SerialTaskSend.c **** 			/* Add bcb to circular buffer for this uart/usart */
+ 218:Ourwares/SerialTaskSend.c **** 			*ptmp->padd = pssb; //Copy BCB pointer into circular buffer
+  99              		.loc 1 218 0
+ 100 004e DA68     		ldr	r2, [r3, #12]
+ 101 0050 1060     		str	r0, [r2]
+ 219:Ourwares/SerialTaskSend.c **** 
+ 220:Ourwares/SerialTaskSend.c **** 			ptmp->padd += 1;	// Advance list ptr with wraparound
+ 102              		.loc 1 220 0
+ 103 0052 DA68     		ldr	r2, [r3, #12]
+ 104 0054 0432     		adds	r2, r2, #4
+ 105 0056 DA60     		str	r2, [r3, #12]
+ 221:Ourwares/SerialTaskSend.c **** 			if (ptmp->padd == ptmp->pend) ptmp->padd = ptmp->pbegin;
+ 106              		.loc 1 221 0
+ 107 0058 9968     		ldr	r1, [r3, #8]
+ 108 005a 8A42     		cmp	r2, r1
+ 109 005c 01D1     		bne	.L9
+ 110              		.loc 1 221 0 is_stmt 0 discriminator 1
+ 111 005e 5A68     		ldr	r2, [r3, #4]
+ 112 0060 DA60     		str	r2, [r3, #12]
+ 113              	.L9:
+ 222:Ourwares/SerialTaskSend.c **** 			{		
+ 223:Ourwares/SerialTaskSend.c ****    	   /* If HAL for this uart/usart is busy nothing happens. */
+ 224:Ourwares/SerialTaskSend.c **** 				if (ptmp->dmaflag == 0) // send buffer via char-by-char or dma 
+ 114              		.loc 1 224 0 is_stmt 1
+ 115 0062 93F91830 		ldrsb	r3, [r3, #24]
+ 116              	.LVL9:
+ 117 0066 33B9     		cbnz	r3, .L10
+ 225:Ourwares/SerialTaskSend.c **** 		 			HAL_UART_Transmit_IT((UART_HandleTypeDef*)pssb->phuart,pssb->pbuf,pssb->size);
+ 118              		.loc 1 225 0
+ARM GAS  /tmp/ccjtZxcX.s 			page 7
+
+
+ 119 0068 019B     		ldr	r3, [sp, #4]
+ 120 006a 1A8A     		ldrh	r2, [r3, #16]
+ 121 006c D968     		ldr	r1, [r3, #12]
+ 122 006e 1868     		ldr	r0, [r3]
+ 123 0070 FFF7FEFF 		bl	HAL_UART_Transmit_IT
+ 124              	.LVL10:
+ 125 0074 C6E7     		b	.L2
+ 126              	.L10:
+ 226:Ourwares/SerialTaskSend.c **** 				else		
+ 227:Ourwares/SerialTaskSend.c ****  					HAL_UART_Transmit_DMA((UART_HandleTypeDef*)pssb->phuart,pssb->pbuf,pssb->size);
+ 127              		.loc 1 227 0
+ 128 0076 019B     		ldr	r3, [sp, #4]
+ 129 0078 1A8A     		ldrh	r2, [r3, #16]
+ 130 007a D968     		ldr	r1, [r3, #12]
+ 131 007c 1868     		ldr	r0, [r3]
+ 132 007e FFF7FEFF 		bl	HAL_UART_Transmit_DMA
+ 133              	.LVL11:
+ 134 0082 BFE7     		b	.L2
+ 135              	.L13:
+ 136              		.align	2
+ 137              	.L12:
+ 138 0084 00000000 		.word	SerialTaskSendQHandle
+ 139 0088 00000000 		.word	.LANCHOR0
+ 140              		.cfi_endproc
+ 141              	.LFE70:
+ 143              		.section	.text.xSerialTaskSendAdd,"ax",%progbits
+ 144              		.align	2
+ 145              		.global	xSerialTaskSendAdd
+ 146              		.thumb
+ 147              		.thumb_func
+ 149              	xSerialTaskSendAdd:
+ 150              	.LFB69:
+ 143:Ourwares/SerialTaskSend.c **** 	struct SSCIRBUF* ptmp1;
+ 151              		.loc 1 143 0
+ 152              		.cfi_startproc
+ 153              		@ args = 0, pretend = 0, frame = 0
+ 154              		@ frame_needed = 0, uses_anonymous_args = 0
+ 155              	.LVL12:
+ 156 0000 F8B5     		push	{r3, r4, r5, r6, r7, lr}
+ 157              	.LCFI2:
+ 158              		.cfi_def_cfa_offset 24
+ 159              		.cfi_offset 3, -24
+ 160              		.cfi_offset 4, -20
+ 161              		.cfi_offset 5, -16
+ 162              		.cfi_offset 6, -12
+ 163              		.cfi_offset 7, -8
+ 164              		.cfi_offset 14, -4
+ 165 0002 0746     		mov	r7, r0
+ 166 0004 0D46     		mov	r5, r1
+ 167 0006 1646     		mov	r6, r2
+ 148:Ourwares/SerialTaskSend.c **** 	/* Add block with circular buffer pointers for this uart/usart to list */
+ 168              		.loc 1 148 0
+ 169 0008 FFF7FEFF 		bl	vPortEnterCritical
+ 170              	.LVL13:
+ 150:Ourwares/SerialTaskSend.c **** 	if (ptmp1 == NULL) {taskEXIT_CRITICAL();return -1;}
+ 171              		.loc 1 150 0
+ 172 000c 1C21     		movs	r1, #28
+ARM GAS  /tmp/ccjtZxcX.s 			page 8
+
+
+ 173 000e 0120     		movs	r0, #1
+ 174 0010 FFF7FEFF 		bl	calloc
+ 175              	.LVL14:
+ 151:Ourwares/SerialTaskSend.c **** 	if (pbhd  == NULL) // Is this the first?
+ 176              		.loc 1 151 0
+ 177 0014 20B9     		cbnz	r0, .L15
+ 151:Ourwares/SerialTaskSend.c **** 	if (pbhd  == NULL) // Is this the first?
+ 178              		.loc 1 151 0 is_stmt 0 discriminator 1
+ 179 0016 FFF7FEFF 		bl	vPortExitCritical
+ 180              	.LVL15:
+ 181 001a 4FF0FF30 		mov	r0, #-1
+ 182 001e F8BD     		pop	{r3, r4, r5, r6, r7, pc}
+ 183              	.LVL16:
+ 184              	.L15:
+ 185 0020 0446     		mov	r4, r0
+ 152:Ourwares/SerialTaskSend.c **** 	{ // Yes
+ 186              		.loc 1 152 0 is_stmt 1
+ 187 0022 114B     		ldr	r3, .L22
+ 188 0024 1B68     		ldr	r3, [r3]
+ 189 0026 23B9     		cbnz	r3, .L17
+ 154:Ourwares/SerialTaskSend.c **** 		ptmp1->pnext = ptmp1; // Point first item on list to self
+ 190              		.loc 1 154 0
+ 191 0028 0F4B     		ldr	r3, .L22
+ 192 002a 1860     		str	r0, [r3]
+ 155:Ourwares/SerialTaskSend.c **** 	}
+ 193              		.loc 1 155 0
+ 194 002c 2060     		str	r0, [r4]
+ 195 002e 05E0     		b	.L18
+ 196              	.LVL17:
+ 197              	.L20:
+ 161:Ourwares/SerialTaskSend.c **** 		ptmp2->pnext = ptmp1; // Last block points to added block
+ 198              		.loc 1 161 0
+ 199 0030 1346     		mov	r3, r2
+ 200              	.LVL18:
+ 201              	.L17:
+ 161:Ourwares/SerialTaskSend.c **** 		ptmp2->pnext = ptmp1; // Last block points to added block
+ 202              		.loc 1 161 0 is_stmt 0 discriminator 1
+ 203 0032 1A68     		ldr	r2, [r3]
+ 204 0034 9342     		cmp	r3, r2
+ 205 0036 FBD1     		bne	.L20
+ 162:Ourwares/SerialTaskSend.c **** 		ptmp1->pnext = ptmp1; // Added block points to self
+ 206              		.loc 1 162 0 is_stmt 1
+ 207 0038 1C60     		str	r4, [r3]
+ 163:Ourwares/SerialTaskSend.c **** 	}
+ 208              		.loc 1 163 0
+ 209 003a 2460     		str	r4, [r4]
+ 210              	.LVL19:
+ 211              	.L18:
+ 167:Ourwares/SerialTaskSend.c **** 	if ( pssb == NULL) {taskEXIT_CRITICAL();return -2;}
+ 212              		.loc 1 167 0
+ 213 003c 0421     		movs	r1, #4
+ 214 003e 2846     		mov	r0, r5
+ 215              	.LVL20:
+ 216 0040 FFF7FEFF 		bl	calloc
+ 217              	.LVL21:
+ 168:Ourwares/SerialTaskSend.c **** 
+ 218              		.loc 1 168 0
+ARM GAS  /tmp/ccjtZxcX.s 			page 9
+
+
+ 219 0044 20B9     		cbnz	r0, .L19
+ 168:Ourwares/SerialTaskSend.c **** 
+ 220              		.loc 1 168 0 is_stmt 0 discriminator 1
+ 221 0046 FFF7FEFF 		bl	vPortExitCritical
+ 222              	.LVL22:
+ 223 004a 6FF00100 		mvn	r0, #1
+ 224 004e F8BD     		pop	{r3, r4, r5, r6, r7, pc}
+ 225              	.LVL23:
+ 226              	.L19:
+ 172:Ourwares/SerialTaskSend.c **** 	ptmp1->padd    = pssb;
+ 227              		.loc 1 172 0 is_stmt 1
+ 228 0050 6060     		str	r0, [r4, #4]
+ 173:Ourwares/SerialTaskSend.c **** 	ptmp1->ptake   = pssb;
+ 229              		.loc 1 173 0
+ 230 0052 E060     		str	r0, [r4, #12]
+ 174:Ourwares/SerialTaskSend.c **** 	ptmp1->pend    = pssb + qsize;
+ 231              		.loc 1 174 0
+ 232 0054 2061     		str	r0, [r4, #16]
+ 175:Ourwares/SerialTaskSend.c **** 	ptmp1->phuart  = p;
+ 233              		.loc 1 175 0
+ 234 0056 00EB8501 		add	r1, r0, r5, lsl #2
+ 235 005a A160     		str	r1, [r4, #8]
+ 176:Ourwares/SerialTaskSend.c **** 	ptmp1->dmaflag = dmaflag;
+ 236              		.loc 1 176 0
+ 237 005c 6761     		str	r7, [r4, #20]
+ 177:Ourwares/SerialTaskSend.c **** taskEXIT_CRITICAL();
+ 238              		.loc 1 177 0
+ 239 005e 2676     		strb	r6, [r4, #24]
+ 178:Ourwares/SerialTaskSend.c **** 	return 0;
+ 240              		.loc 1 178 0
+ 241 0060 FFF7FEFF 		bl	vPortExitCritical
+ 242              	.LVL24:
+ 179:Ourwares/SerialTaskSend.c **** }
+ 243              		.loc 1 179 0
+ 244 0064 0020     		movs	r0, #0
+ 180:Ourwares/SerialTaskSend.c **** 
+ 245              		.loc 1 180 0
+ 246 0066 F8BD     		pop	{r3, r4, r5, r6, r7, pc}
+ 247              	.LVL25:
+ 248              	.L23:
+ 249              		.align	2
+ 250              	.L22:
+ 251 0068 00000000 		.word	.LANCHOR0
+ 252              		.cfi_endproc
+ 253              	.LFE69:
+ 255              		.section	.text.xSerialTaskSendCreate,"ax",%progbits
+ 256              		.align	2
+ 257              		.global	xSerialTaskSendCreate
+ 258              		.thumb
+ 259              		.thumb_func
+ 261              	xSerialTaskSendCreate:
+ 262              	.LFB71:
+ 228:Ourwares/SerialTaskSend.c **** 			}
+ 229:Ourwares/SerialTaskSend.c **** 		}
+ 230:Ourwares/SerialTaskSend.c **** 	}
+ 231:Ourwares/SerialTaskSend.c **** }
+ 232:Ourwares/SerialTaskSend.c **** /* *************************************************************************
+ARM GAS  /tmp/ccjtZxcX.s 			page 10
+
+
+ 233:Ourwares/SerialTaskSend.c ****  * osThreadId xSerialTaskSendCreate(uint32_t taskpriority);
+ 234:Ourwares/SerialTaskSend.c ****  * @brief	: Create task; task handle created is global for all to enjoy!
+ 235:Ourwares/SerialTaskSend.c ****  * @param	: taskpriority = Task priority (just as it says!)
+ 236:Ourwares/SerialTaskSend.c ****  * @return	: SerialTaskSendHandle
+ 237:Ourwares/SerialTaskSend.c ****  * *************************************************************************/
+ 238:Ourwares/SerialTaskSend.c **** osThreadId xSerialTaskSendCreate(uint32_t taskpriority)
+ 239:Ourwares/SerialTaskSend.c **** {
+ 263              		.loc 1 239 0
+ 264              		.cfi_startproc
+ 265              		@ args = 0, pretend = 0, frame = 0
+ 266              		@ frame_needed = 0, uses_anonymous_args = 0
+ 267              	.LVL26:
+ 268 0000 00B5     		push	{lr}
+ 269              	.LCFI3:
+ 270              		.cfi_def_cfa_offset 4
+ 271              		.cfi_offset 14, -4
+ 272 0002 83B0     		sub	sp, sp, #12
+ 273              	.LCFI4:
+ 274              		.cfi_def_cfa_offset 16
+ 240:Ourwares/SerialTaskSend.c **** /*
+ 241:Ourwares/SerialTaskSend.c **** BaseType_t xTaskCreate( TaskFunction_t pvTaskCode,
+ 242:Ourwares/SerialTaskSend.c **** const char * const pcName,
+ 243:Ourwares/SerialTaskSend.c **** unsigned short usStackDepth,
+ 244:Ourwares/SerialTaskSend.c **** void *pvParameters,
+ 245:Ourwares/SerialTaskSend.c **** UBaseType_t uxPriority,
+ 246:Ourwares/SerialTaskSend.c **** TaskHandle_t *pxCreatedTask );
+ 247:Ourwares/SerialTaskSend.c **** */
+ 248:Ourwares/SerialTaskSend.c **** 	BaseType_t ret = xTaskCreate(StartSerialTaskSend, "SerialTaskSend",\
+ 275              		.loc 1 248 0
+ 276 0004 0C4B     		ldr	r3, .L28
+ 277 0006 0193     		str	r3, [sp, #4]
+ 278 0008 0090     		str	r0, [sp]
+ 279 000a 0023     		movs	r3, #0
+ 280 000c 8022     		movs	r2, #128
+ 281 000e 0B49     		ldr	r1, .L28+4
+ 282 0010 0B48     		ldr	r0, .L28+8
+ 283              	.LVL27:
+ 284 0012 FFF7FEFF 		bl	xTaskCreate
+ 285              	.LVL28:
+ 249:Ourwares/SerialTaskSend.c ****      128, NULL, taskpriority,\
+ 250:Ourwares/SerialTaskSend.c ****      &SerialTaskHandle);
+ 251:Ourwares/SerialTaskSend.c **** 	if (ret != pdPASS) return NULL;
+ 286              		.loc 1 251 0
+ 287 0016 0128     		cmp	r0, #1
+ 288 0018 0AD1     		bne	.L26
+ 252:Ourwares/SerialTaskSend.c **** 
+ 253:Ourwares/SerialTaskSend.c **** 	SerialTaskSendQHandle = xQueueCreate(QUEUESIZE, sizeof(struct SERIALSENDTASKBCB) );
+ 289              		.loc 1 253 0
+ 290 001a 0022     		movs	r2, #0
+ 291 001c 1421     		movs	r1, #20
+ 292 001e 1020     		movs	r0, #16
+ 293              	.LVL29:
+ 294 0020 FFF7FEFF 		bl	xQueueGenericCreate
+ 295              	.LVL30:
+ 296 0024 074B     		ldr	r3, .L28+12
+ 297 0026 1860     		str	r0, [r3]
+ 254:Ourwares/SerialTaskSend.c **** 	if (SerialTaskSendQHandle == NULL) return NULL;
+ARM GAS  /tmp/ccjtZxcX.s 			page 11
+
+
+ 298              		.loc 1 254 0
+ 299 0028 18B1     		cbz	r0, .L25
+ 255:Ourwares/SerialTaskSend.c **** 	return SerialTaskHandle;
+ 300              		.loc 1 255 0
+ 301 002a 034B     		ldr	r3, .L28
+ 302 002c 1868     		ldr	r0, [r3]
+ 303 002e 00E0     		b	.L25
+ 304              	.LVL31:
+ 305              	.L26:
+ 251:Ourwares/SerialTaskSend.c **** 
+ 306              		.loc 1 251 0
+ 307 0030 0020     		movs	r0, #0
+ 308              	.LVL32:
+ 309              	.L25:
+ 256:Ourwares/SerialTaskSend.c **** }
+ 310              		.loc 1 256 0
+ 311 0032 03B0     		add	sp, sp, #12
+ 312              	.LCFI5:
+ 313              		.cfi_def_cfa_offset 4
+ 314              		@ sp needed
+ 315 0034 5DF804FB 		ldr	pc, [sp], #4
+ 316              	.L29:
+ 317              		.align	2
+ 318              	.L28:
+ 319 0038 00000000 		.word	.LANCHOR1
+ 320 003c 00000000 		.word	.LC0
+ 321 0040 00000000 		.word	StartSerialTaskSend
+ 322 0044 00000000 		.word	SerialTaskSendQHandle
+ 323              		.cfi_endproc
+ 324              	.LFE71:
+ 326              		.section	.text.HAL_UART_TxCpltCallback,"ax",%progbits
+ 327              		.align	2
+ 328              		.global	HAL_UART_TxCpltCallback
+ 329              		.thumb
+ 330              		.thumb_func
+ 332              	HAL_UART_TxCpltCallback:
+ 333              	.LFB72:
+ 257:Ourwares/SerialTaskSend.c **** /* #######################################################################
+ 258:Ourwares/SerialTaskSend.c ****    UART interrupt callback: file|size has been sent
+ 259:Ourwares/SerialTaskSend.c ****    ####################################################################### */
+ 260:Ourwares/SerialTaskSend.c **** void HAL_UART_TxCpltCallback(UART_HandleTypeDef *phuart)
+ 261:Ourwares/SerialTaskSend.c **** {
+ 334              		.loc 1 261 0
+ 335              		.cfi_startproc
+ 336              		@ args = 0, pretend = 0, frame = 8
+ 337              		@ frame_needed = 0, uses_anonymous_args = 0
+ 338              	.LVL33:
+ 339 0000 10B5     		push	{r4, lr}
+ 340              	.LCFI6:
+ 341              		.cfi_def_cfa_offset 8
+ 342              		.cfi_offset 4, -8
+ 343              		.cfi_offset 14, -4
+ 344 0002 82B0     		sub	sp, sp, #8
+ 345              	.LCFI7:
+ 346              		.cfi_def_cfa_offset 16
+ 262:Ourwares/SerialTaskSend.c **** 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+ 347              		.loc 1 262 0
+ARM GAS  /tmp/ccjtZxcX.s 			page 12
+
+
+ 348 0004 0023     		movs	r3, #0
+ 349 0006 0193     		str	r3, [sp, #4]
+ 263:Ourwares/SerialTaskSend.c **** 
+ 264:Ourwares/SerialTaskSend.c **** 	struct SERIALSENDTASKBCB* pbcb; // Buffer control block ptr
+ 265:Ourwares/SerialTaskSend.c **** 	struct SSCIRBUF* ptmp1;	// Linked list of usarts
+ 266:Ourwares/SerialTaskSend.c **** 
+ 267:Ourwares/SerialTaskSend.c **** 	/* Find bcb circular buffer for this uart */
+ 268:Ourwares/SerialTaskSend.c **** 	ptmp1 = pbhd; // Polnt to first on list
+ 350              		.loc 1 268 0
+ 351 0008 194B     		ldr	r3, .L38
+ 352 000a 1C68     		ldr	r4, [r3]
+ 353              	.LVL34:
+ 269:Ourwares/SerialTaskSend.c **** 	while (ptmp1->phuart != phuart) 
+ 354              		.loc 1 269 0
+ 355 000c 00E0     		b	.L31
+ 356              	.L32:
+ 270:Ourwares/SerialTaskSend.c **** 	{
+ 271:Ourwares/SerialTaskSend.c **** 		ptmp1 = ptmp1->pnext; // Step to next uart
+ 357              		.loc 1 271 0
+ 358 000e 2468     		ldr	r4, [r4]
+ 359              	.LVL35:
+ 360              	.L31:
+ 269:Ourwares/SerialTaskSend.c **** 	while (ptmp1->phuart != phuart) 
+ 361              		.loc 1 269 0
+ 362 0010 6369     		ldr	r3, [r4, #20]
+ 363 0012 8342     		cmp	r3, r0
+ 364 0014 FBD1     		bne	.L32
+ 272:Ourwares/SerialTaskSend.c **** 	}
+ 273:Ourwares/SerialTaskSend.c **** 
+ 274:Ourwares/SerialTaskSend.c **** 	/* Pointer to buffer control block for next buffer to send. */
+ 275:Ourwares/SerialTaskSend.c **** 	pbcb = *ptmp1->ptake;
+ 365              		.loc 1 275 0
+ 366 0016 2369     		ldr	r3, [r4, #16]
+ 367 0018 1B68     		ldr	r3, [r3]
+ 368              	.LVL36:
+ 276:Ourwares/SerialTaskSend.c **** 
+ 277:Ourwares/SerialTaskSend.c ****    /* Release buffer just sent to it can be reused. */
+ 278:Ourwares/SerialTaskSend.c **** 	xSemaphoreGiveFromISR( pbcb->semaphore, &xHigherPriorityTaskWoken );
+ 369              		.loc 1 278 0
+ 370 001a 01A9     		add	r1, sp, #4
+ 371 001c 9868     		ldr	r0, [r3, #8]
+ 372              	.LVL37:
+ 373 001e FFF7FEFF 		bl	xQueueGiveFromISR
+ 374              	.LVL38:
+ 279:Ourwares/SerialTaskSend.c **** 
+ 280:Ourwares/SerialTaskSend.c **** 	/* Advance 'take' pointer of circular bcb buffer. */
+ 281:Ourwares/SerialTaskSend.c **** 	ptmp1->ptake += 1;	// Advance ptr with wraparound
+ 375              		.loc 1 281 0
+ 376 0022 2369     		ldr	r3, [r4, #16]
+ 377 0024 0433     		adds	r3, r3, #4
+ 378 0026 2361     		str	r3, [r4, #16]
+ 282:Ourwares/SerialTaskSend.c **** 	if (ptmp1->ptake == ptmp1->pend) ptmp1->ptake = ptmp1->pbegin;	
+ 379              		.loc 1 282 0
+ 380 0028 A268     		ldr	r2, [r4, #8]
+ 381 002a 9342     		cmp	r3, r2
+ 382 002c 01D1     		bne	.L33
+ 383              		.loc 1 282 0 is_stmt 0 discriminator 1
+ARM GAS  /tmp/ccjtZxcX.s 			page 13
+
+
+ 384 002e 6368     		ldr	r3, [r4, #4]
+ 385 0030 2361     		str	r3, [r4, #16]
+ 386              	.L33:
+ 283:Ourwares/SerialTaskSend.c **** 
+ 284:Ourwares/SerialTaskSend.c **** 	/* If more bcb remain in the buffer start the next sending. */
+ 285:Ourwares/SerialTaskSend.c **** 	if (ptmp1->ptake != ptmp1->padd)
+ 387              		.loc 1 285 0 is_stmt 1
+ 388 0032 2369     		ldr	r3, [r4, #16]
+ 389 0034 E268     		ldr	r2, [r4, #12]
+ 390 0036 9342     		cmp	r3, r2
+ 391 0038 0ED0     		beq	.L34
+ 286:Ourwares/SerialTaskSend.c **** 	{
+ 287:Ourwares/SerialTaskSend.c **** 		pbcb = *ptmp1->ptake;
+ 392              		.loc 1 287 0
+ 393 003a 1B68     		ldr	r3, [r3]
+ 394              	.LVL39:
+ 288:Ourwares/SerialTaskSend.c **** 		if (ptmp1->dmaflag == 0)
+ 395              		.loc 1 288 0
+ 396 003c 94F91820 		ldrsb	r2, [r4, #24]
+ 397 0040 2AB9     		cbnz	r2, .L35
+ 289:Ourwares/SerialTaskSend.c **** 			HAL_UART_Transmit_IT (pbcb->phuart,pbcb->pbuf,pbcb->size);
+ 398              		.loc 1 289 0
+ 399 0042 1A8A     		ldrh	r2, [r3, #16]
+ 400 0044 D968     		ldr	r1, [r3, #12]
+ 401 0046 1868     		ldr	r0, [r3]
+ 402 0048 FFF7FEFF 		bl	HAL_UART_Transmit_IT
+ 403              	.LVL40:
+ 404 004c 04E0     		b	.L34
+ 405              	.LVL41:
+ 406              	.L35:
+ 290:Ourwares/SerialTaskSend.c **** 		else
+ 291:Ourwares/SerialTaskSend.c **** 			HAL_UART_Transmit_DMA(pbcb->phuart,pbcb->pbuf,pbcb->size);
+ 407              		.loc 1 291 0
+ 408 004e 1A8A     		ldrh	r2, [r3, #16]
+ 409 0050 D968     		ldr	r1, [r3, #12]
+ 410 0052 1868     		ldr	r0, [r3]
+ 411 0054 FFF7FEFF 		bl	HAL_UART_Transmit_DMA
+ 412              	.LVL42:
+ 413              	.L34:
+ 292:Ourwares/SerialTaskSend.c **** 	}
+ 293:Ourwares/SerialTaskSend.c **** 	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+ 414              		.loc 1 293 0
+ 415 0058 019B     		ldr	r3, [sp, #4]
+ 416 005a 3BB1     		cbz	r3, .L30
+ 417              		.loc 1 293 0 is_stmt 0 discriminator 1
+ 418 005c 4FF08052 		mov	r2, #268435456
+ 419 0060 044B     		ldr	r3, .L38+4
+ 420 0062 1A60     		str	r2, [r3]
+ 421              		.syntax unified
+ 422              	@ 293 "Ourwares/SerialTaskSend.c" 1
+ 423 0064 BFF34F8F 		dsb
+ 424              	@ 0 "" 2
+ 425              	@ 293 "Ourwares/SerialTaskSend.c" 1
+ 426 0068 BFF36F8F 		isb
+ 427              	@ 0 "" 2
+ 428              		.thumb
+ 429              		.syntax unified
+ARM GAS  /tmp/ccjtZxcX.s 			page 14
+
+
+ 430              	.L30:
+ 294:Ourwares/SerialTaskSend.c **** 	return;
+ 295:Ourwares/SerialTaskSend.c **** }
+ 431              		.loc 1 295 0 is_stmt 1
+ 432 006c 02B0     		add	sp, sp, #8
+ 433              	.LCFI8:
+ 434              		.cfi_def_cfa_offset 8
+ 435              		@ sp needed
+ 436 006e 10BD     		pop	{r4, pc}
+ 437              	.LVL43:
+ 438              	.L39:
+ 439              		.align	2
+ 440              	.L38:
+ 441 0070 00000000 		.word	.LANCHOR0
+ 442 0074 04ED00E0 		.word	-536810236
+ 443              		.cfi_endproc
+ 444              	.LFE72:
+ 446              		.section	.text.vSerialTaskSendQueueBuf,"ax",%progbits
+ 447              		.align	2
+ 448              		.global	vSerialTaskSendQueueBuf
+ 449              		.thumb
+ 450              		.thumb_func
+ 452              	vSerialTaskSendQueueBuf:
+ 453              	.LFB73:
+ 296:Ourwares/SerialTaskSend.c **** 
+ 297:Ourwares/SerialTaskSend.c **** /* *************************************************************************
+ 298:Ourwares/SerialTaskSend.c ****  * void vSerialTaskSendQueueBuf(struct SERIALSENDTASKBCB** ppbcb);
+ 299:Ourwares/SerialTaskSend.c ****  *	@brief	: Load buffer control block onto queue for sending
+ 300:Ourwares/SerialTaskSend.c ****  * @param	: ppbcb = Pointer to pointer to Buffer Control Block
+ 301:Ourwares/SerialTaskSend.c ****  * *************************************************************************/
+ 302:Ourwares/SerialTaskSend.c **** void vSerialTaskSendQueueBuf(struct SERIALSENDTASKBCB** ppbcb)
+ 303:Ourwares/SerialTaskSend.c **** {
+ 454              		.loc 1 303 0
+ 455              		.cfi_startproc
+ 456              		@ args = 0, pretend = 0, frame = 0
+ 457              		@ frame_needed = 0, uses_anonymous_args = 0
+ 458              	.LVL44:
+ 459 0000 38B5     		push	{r3, r4, r5, lr}
+ 460              	.LCFI9:
+ 461              		.cfi_def_cfa_offset 16
+ 462              		.cfi_offset 3, -16
+ 463              		.cfi_offset 4, -12
+ 464              		.cfi_offset 5, -8
+ 465              		.cfi_offset 14, -4
+ 466 0002 0546     		mov	r5, r0
+ 467              	.LVL45:
+ 468              	.L42:
+ 304:Ourwares/SerialTaskSend.c **** 	uint32_t qret;
+ 305:Ourwares/SerialTaskSend.c **** 
+ 306:Ourwares/SerialTaskSend.c **** 	do 
+ 307:Ourwares/SerialTaskSend.c **** 	{
+ 308:Ourwares/SerialTaskSend.c **** 		qret=xQueueSendToBack(SerialTaskSendQHandle, ppbcb, portMAX_DELAY);
+ 469              		.loc 1 308 0
+ 470 0004 0023     		movs	r3, #0
+ 471 0006 4FF0FF32 		mov	r2, #-1
+ 472 000a 2946     		mov	r1, r5
+ 473 000c 0548     		ldr	r0, .L44
+ARM GAS  /tmp/ccjtZxcX.s 			page 15
+
+
+ 474 000e 0068     		ldr	r0, [r0]
+ 475 0010 FFF7FEFF 		bl	xQueueGenericSend
+ 476              	.LVL46:
+ 309:Ourwares/SerialTaskSend.c **** 		if (qret == errQUEUE_FULL) osDelay(1); // Delay, don't spin.
+ 477              		.loc 1 309 0
+ 478 0014 0446     		mov	r4, r0
+ 479 0016 10B9     		cbnz	r0, .L41
+ 480              		.loc 1 309 0 is_stmt 0 discriminator 1
+ 481 0018 0120     		movs	r0, #1
+ 482              	.LVL47:
+ 483 001a FFF7FEFF 		bl	osDelay
+ 484              	.LVL48:
+ 485              	.L41:
+ 310:Ourwares/SerialTaskSend.c **** 
+ 311:Ourwares/SerialTaskSend.c **** 	} while(qret == errQUEUE_FULL);
+ 486              		.loc 1 311 0 is_stmt 1
+ 487 001e 002C     		cmp	r4, #0
+ 488 0020 F0D0     		beq	.L42
+ 312:Ourwares/SerialTaskSend.c **** 	return;
+ 313:Ourwares/SerialTaskSend.c **** }
+ 489              		.loc 1 313 0
+ 490 0022 38BD     		pop	{r3, r4, r5, pc}
+ 491              	.LVL49:
+ 492              	.L45:
+ 493              		.align	2
+ 494              	.L44:
+ 495 0024 00000000 		.word	SerialTaskSendQHandle
+ 496              		.cfi_endproc
+ 497              	.LFE73:
+ 499              		.global	pbhd
+ 500              		.comm	SerialTaskSendQHandle,4,4
+ 501              		.global	SerialTaskHandle
+ 502              		.section	.bss.pbhd,"aw",%nobits
+ 503              		.align	2
+ 504              		.set	.LANCHOR0,. + 0
+ 507              	pbhd:
+ 508 0000 00000000 		.space	4
+ 509              		.section	.bss.SerialTaskHandle,"aw",%nobits
+ 510              		.align	2
+ 511              		.set	.LANCHOR1,. + 0
+ 514              	SerialTaskHandle:
+ 515 0000 00000000 		.space	4
+ 516              		.section	.rodata.str1.4,"aMS",%progbits,1
+ 517              		.align	2
+ 518              	.LC0:
+ 519 0000 53657269 		.ascii	"SerialTaskSend\000"
+ 519      616C5461 
+ 519      736B5365 
+ 519      6E6400
+ 520              		.text
+ 521              	.Letext0:
+ 522              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 523              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 524              		.file 4 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 525              		.file 5 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 526              		.file 6 "Middlewares/Third_Party/FreeRTOS/Source/include/queue.h"
+ 527              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h"
+ARM GAS  /tmp/ccjtZxcX.s 			page 16
+
+
+ 528              		.file 8 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 529              		.file 9 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 530              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 531              		.file 11 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 532              		.file 12 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h"
+ 533              		.file 13 "Ourwares/SerialTaskSend.h"
+ 534              		.file 14 "Drivers/CMSIS/Include/core_cm3.h"
+ 535              		.file 15 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/malloc.h"
+ARM GAS  /tmp/ccjtZxcX.s 			page 17
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 SerialTaskSend.c
+     /tmp/ccjtZxcX.s:20     .text.StartSerialTaskSend:00000000 $t
+     /tmp/ccjtZxcX.s:25     .text.StartSerialTaskSend:00000000 StartSerialTaskSend
+     /tmp/ccjtZxcX.s:138    .text.StartSerialTaskSend:00000084 $d
+                            *COM*:00000004 SerialTaskSendQHandle
+     /tmp/ccjtZxcX.s:144    .text.xSerialTaskSendAdd:00000000 $t
+     /tmp/ccjtZxcX.s:149    .text.xSerialTaskSendAdd:00000000 xSerialTaskSendAdd
+     /tmp/ccjtZxcX.s:251    .text.xSerialTaskSendAdd:00000068 $d
+     /tmp/ccjtZxcX.s:256    .text.xSerialTaskSendCreate:00000000 $t
+     /tmp/ccjtZxcX.s:261    .text.xSerialTaskSendCreate:00000000 xSerialTaskSendCreate
+     /tmp/ccjtZxcX.s:319    .text.xSerialTaskSendCreate:00000038 $d
+     /tmp/ccjtZxcX.s:327    .text.HAL_UART_TxCpltCallback:00000000 $t
+     /tmp/ccjtZxcX.s:332    .text.HAL_UART_TxCpltCallback:00000000 HAL_UART_TxCpltCallback
+     /tmp/ccjtZxcX.s:441    .text.HAL_UART_TxCpltCallback:00000070 $d
+     /tmp/ccjtZxcX.s:447    .text.vSerialTaskSendQueueBuf:00000000 $t
+     /tmp/ccjtZxcX.s:452    .text.vSerialTaskSendQueueBuf:00000000 vSerialTaskSendQueueBuf
+     /tmp/ccjtZxcX.s:495    .text.vSerialTaskSendQueueBuf:00000024 $d
+     /tmp/ccjtZxcX.s:507    .bss.pbhd:00000000 pbhd
+     /tmp/ccjtZxcX.s:514    .bss.SerialTaskHandle:00000000 SerialTaskHandle
+     /tmp/ccjtZxcX.s:503    .bss.pbhd:00000000 $d
+     /tmp/ccjtZxcX.s:510    .bss.SerialTaskHandle:00000000 $d
+     /tmp/ccjtZxcX.s:517    .rodata.str1.4:00000000 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+xQueueGenericReceive
+xQueueGenericSend
+HAL_UART_Transmit_IT
+HAL_UART_Transmit_DMA
+vPortEnterCritical
+calloc
+vPortExitCritical
+xTaskCreate
+xQueueGenericCreate
+xQueueGiveFromISR
+osDelay

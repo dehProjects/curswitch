@@ -1,0 +1,455 @@
+ARM GAS  /tmp/ccOzIGCL.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"yprintf.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.yprintf_init,"ax",%progbits
+  20              		.align	2
+  21              		.global	yprintf_init
+  22              		.thumb
+  23              		.thumb_func
+  25              	yprintf_init:
+  26              	.LFB69:
+  27              		.file 1 "Ourwares/yprintf.c"
+   1:Ourwares/yprintf.c **** /******************************************************************************
+   2:Ourwares/yprintf.c **** * File Name          : yprintf.c
+   3:Ourwares/yprintf.c **** * Date First Issued  : 01/17/2019
+   4:Ourwares/yprintf.c **** * Board              : 
+   5:Ourwares/yprintf.c **** * Description        : Substitute for 'fprintf' for multiple uarts
+   6:Ourwares/yprintf.c **** *******************************************************************************/
+   7:Ourwares/yprintf.c **** 
+   8:Ourwares/yprintf.c **** #include <stdint.h>
+   9:Ourwares/yprintf.c **** #include <stdarg.h>
+  10:Ourwares/yprintf.c **** #include <stdio.h>
+  11:Ourwares/yprintf.c **** #include <string.h>
+  12:Ourwares/yprintf.c **** #include "yprintf.h"
+  13:Ourwares/yprintf.c **** 
+  14:Ourwares/yprintf.c **** osSemaphoreId vsnprintfSemaphoreHandle;
+  15:Ourwares/yprintf.c **** static uint8_t sw = 0;	// OTO initiationzation switch
+  16:Ourwares/yprintf.c **** 
+  17:Ourwares/yprintf.c **** /* **************************************************************************************
+  18:Ourwares/yprintf.c ****  *  int yprintf_init(void);
+  19:Ourwares/yprintf.c ****  * @brief	: Setup semaphore
+  20:Ourwares/yprintf.c ****  * @return	: 0 = init executed; -1 = init already done
+  21:Ourwares/yprintf.c ****  * ************************************************************************************** */
+  22:Ourwares/yprintf.c **** int yprintf_init(void)
+  23:Ourwares/yprintf.c **** {
+  28              		.loc 1 23 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 8
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  24:Ourwares/yprintf.c **** 	if (sw == 0)
+  32              		.loc 1 24 0
+  33 0000 0C4B     		ldr	r3, .L5
+  34 0002 1B78     		ldrb	r3, [r3]	@ zero_extendqisi2
+ARM GAS  /tmp/ccOzIGCL.s 			page 2
+
+
+  35 0004 93B9     		cbnz	r3, .L4
+  23:Ourwares/yprintf.c **** 	if (sw == 0)
+  36              		.loc 1 23 0
+  37 0006 00B5     		push	{lr}
+  38              	.LCFI0:
+  39              		.cfi_def_cfa_offset 4
+  40              		.cfi_offset 14, -4
+  41 0008 83B0     		sub	sp, sp, #12
+  42              	.LCFI1:
+  43              		.cfi_def_cfa_offset 16
+  44              	.LBB2:
+  25:Ourwares/yprintf.c **** 	{
+  26:Ourwares/yprintf.c **** 		sw = -1;
+  45              		.loc 1 26 0
+  46 000a FF22     		movs	r2, #255
+  47 000c 094B     		ldr	r3, .L5
+  48 000e 1A70     		strb	r2, [r3]
+  27:Ourwares/yprintf.c **** 		osSemaphoreDef(vsnprintfSemaphore);
+  49              		.loc 1 27 0
+  50 0010 0023     		movs	r3, #0
+  51 0012 0093     		str	r3, [sp]
+  52 0014 0193     		str	r3, [sp, #4]
+  28:Ourwares/yprintf.c **** 		vsnprintfSemaphoreHandle = osSemaphoreCreate(osSemaphore(vsnprintfSemaphore), 1);
+  53              		.loc 1 28 0
+  54 0016 0121     		movs	r1, #1
+  55 0018 6846     		mov	r0, sp
+  56 001a FFF7FEFF 		bl	osSemaphoreCreate
+  57              	.LVL0:
+  58 001e 064B     		ldr	r3, .L5+4
+  59 0020 1860     		str	r0, [r3]
+  60              	.LBE2:
+  29:Ourwares/yprintf.c **** 	}
+  30:Ourwares/yprintf.c **** 	return sw;
+  31:Ourwares/yprintf.c **** }
+  61              		.loc 1 31 0
+  62 0022 044B     		ldr	r3, .L5
+  63 0024 1878     		ldrb	r0, [r3]	@ zero_extendqisi2
+  64 0026 03B0     		add	sp, sp, #12
+  65              	.LCFI2:
+  66              		.cfi_def_cfa_offset 4
+  67              		@ sp needed
+  68 0028 5DF804FB 		ldr	pc, [sp], #4
+  69              	.L4:
+  70              	.LCFI3:
+  71              		.cfi_def_cfa_offset 0
+  72              		.cfi_restore 14
+  73 002c 014B     		ldr	r3, .L5
+  74 002e 1878     		ldrb	r0, [r3]	@ zero_extendqisi2
+  75 0030 7047     		bx	lr
+  76              	.L6:
+  77 0032 00BF     		.align	2
+  78              	.L5:
+  79 0034 00000000 		.word	.LANCHOR0
+  80 0038 00000000 		.word	vsnprintfSemaphoreHandle
+  81              		.cfi_endproc
+  82              	.LFE69:
+  84              		.section	.text.yprintf,"ax",%progbits
+ARM GAS  /tmp/ccOzIGCL.s 			page 3
+
+
+  85              		.align	2
+  86              		.global	yprintf
+  87              		.thumb
+  88              		.thumb_func
+  90              	yprintf:
+  91              	.LFB70:
+  32:Ourwares/yprintf.c **** /* **************************************************************************************
+  33:Ourwares/yprintf.c ****  * int yprintf(struct SERIALSENDTASKCB** ppbcb, const char *fmt, ...);
+  34:Ourwares/yprintf.c ****  * @brief	: 'printf' for uarts
+  35:Ourwares/yprintf.c ****  * @param	: pbcb = pointer to pointer to stuct with uart pointers and buffer parameters
+  36:Ourwares/yprintf.c ****  * @param	: format = usual printf format
+  37:Ourwares/yprintf.c ****  * @param	: ... = usual printf arguments
+  38:Ourwares/yprintf.c ****  * @return	: Number of chars "printed"
+  39:Ourwares/yprintf.c ****  * ************************************************************************************** */
+  40:Ourwares/yprintf.c **** int yprintf(struct SERIALSENDTASKBCB** ppbcb, const char *fmt, ...)
+  41:Ourwares/yprintf.c **** {
+  92              		.loc 1 41 0
+  93              		.cfi_startproc
+  94              		@ args = 4, pretend = 12, frame = 8
+  95              		@ frame_needed = 0, uses_anonymous_args = 1
+  96              	.LVL1:
+  97 0000 0EB4     		push	{r1, r2, r3}
+  98              	.LCFI4:
+  99              		.cfi_def_cfa_offset 12
+ 100              		.cfi_offset 1, -12
+ 101              		.cfi_offset 2, -8
+ 102              		.cfi_offset 3, -4
+ 103 0002 F0B5     		push	{r4, r5, r6, r7, lr}
+ 104              	.LCFI5:
+ 105              		.cfi_def_cfa_offset 32
+ 106              		.cfi_offset 4, -32
+ 107              		.cfi_offset 5, -28
+ 108              		.cfi_offset 6, -24
+ 109              		.cfi_offset 7, -20
+ 110              		.cfi_offset 14, -16
+ 111 0004 82B0     		sub	sp, sp, #8
+ 112              	.LCFI6:
+ 113              		.cfi_def_cfa_offset 40
+ 114 0006 0646     		mov	r6, r0
+ 115 0008 07AD     		add	r5, sp, #28
+ 116 000a 55F8047B 		ldr	r7, [r5], #4
+  42:Ourwares/yprintf.c **** 	struct SERIALSENDTASKBCB* pbcb = *ppbcb;
+ 117              		.loc 1 42 0
+ 118 000e 0468     		ldr	r4, [r0]
+ 119              	.LVL2:
+  43:Ourwares/yprintf.c **** 	va_list argp;
+  44:Ourwares/yprintf.c **** 
+  45:Ourwares/yprintf.c **** 	yprintf_init();	// JIC not init'd
+ 120              		.loc 1 45 0
+ 121 0010 FFF7FEFF 		bl	yprintf_init
+ 122              	.LVL3:
+  46:Ourwares/yprintf.c **** 
+  47:Ourwares/yprintf.c **** 	/* Block if this buffer is not available. SerialSendTask will 'give' the semaphore 
+  48:Ourwares/yprintf.c ****       when the buffer has been sent. */
+  49:Ourwares/yprintf.c **** 	xSemaphoreTake(pbcb->semaphore, 6000);
+ 123              		.loc 1 49 0
+ 124 0014 0023     		movs	r3, #0
+ARM GAS  /tmp/ccOzIGCL.s 			page 4
+
+
+ 125 0016 41F27072 		movw	r2, #6000
+ 126 001a 1946     		mov	r1, r3
+ 127 001c A068     		ldr	r0, [r4, #8]
+ 128 001e FFF7FEFF 		bl	xQueueGenericReceive
+ 129              	.LVL4:
+  50:Ourwares/yprintf.c **** 
+  51:Ourwares/yprintf.c **** 	/* Block if vsnprintf is being uses by someone else. */
+  52:Ourwares/yprintf.c **** 	xSemaphoreTake( vsnprintfSemaphoreHandle, portMAX_DELAY );
+ 130              		.loc 1 52 0
+ 131 0022 0023     		movs	r3, #0
+ 132 0024 4FF0FF32 		mov	r2, #-1
+ 133 0028 1946     		mov	r1, r3
+ 134 002a 1248     		ldr	r0, .L12
+ 135 002c 0068     		ldr	r0, [r0]
+ 136 002e FFF7FEFF 		bl	xQueueGenericReceive
+ 137              	.LVL5:
+  53:Ourwares/yprintf.c **** 
+  54:Ourwares/yprintf.c **** 	/* Construct line of data.  Stop filling buffer if it is full. */
+  55:Ourwares/yprintf.c **** 	va_start(argp, fmt);
+  56:Ourwares/yprintf.c **** 	va_start(argp, fmt);
+ 138              		.loc 1 56 0
+ 139 0032 0195     		str	r5, [sp, #4]
+  57:Ourwares/yprintf.c **** 	pbcb->size = vsnprintf((char*)(pbcb->pbuf),pbcb->maxsize, fmt, argp);
+ 140              		.loc 1 57 0
+ 141 0034 2B46     		mov	r3, r5
+ 142 0036 3A46     		mov	r2, r7
+ 143 0038 618A     		ldrh	r1, [r4, #18]
+ 144 003a E068     		ldr	r0, [r4, #12]
+ 145 003c FFF7FEFF 		bl	vsnprintf
+ 146              	.LVL6:
+ 147 0040 2082     		strh	r0, [r4, #16]	@ movhi
+  58:Ourwares/yprintf.c **** 	va_end(argp);
+  59:Ourwares/yprintf.c **** 
+  60:Ourwares/yprintf.c **** 	/* Limit byte count in BCB to be put on queue, from vsnprintf to max buffer sizes. */
+  61:Ourwares/yprintf.c **** 	if (pbcb->size > pbcb->maxsize) 
+ 148              		.loc 1 61 0
+ 149 0042 80B2     		uxth	r0, r0
+ 150 0044 638A     		ldrh	r3, [r4, #18]
+ 151 0046 9842     		cmp	r0, r3
+ 152 0048 00D9     		bls	.L8
+  62:Ourwares/yprintf.c **** 			pbcb->size = pbcb->maxsize;
+ 153              		.loc 1 62 0
+ 154 004a 2382     		strh	r3, [r4, #16]	@ movhi
+ 155              	.L8:
+  63:Ourwares/yprintf.c **** 
+  64:Ourwares/yprintf.c **** 	/* Release semaphore controlling vsnprintf. */
+  65:Ourwares/yprintf.c **** 	xSemaphoreGive( vsnprintfSemaphoreHandle );
+ 156              		.loc 1 65 0
+ 157 004c 0023     		movs	r3, #0
+ 158 004e 1A46     		mov	r2, r3
+ 159 0050 1946     		mov	r1, r3
+ 160 0052 0848     		ldr	r0, .L12
+ 161 0054 0068     		ldr	r0, [r0]
+ 162 0056 FFF7FEFF 		bl	xQueueGenericSend
+ 163              	.LVL7:
+  66:Ourwares/yprintf.c **** 
+  67:Ourwares/yprintf.c **** 	/* JIC */
+ARM GAS  /tmp/ccOzIGCL.s 			page 5
+
+
+  68:Ourwares/yprintf.c **** 	if (pbcb->size == 0) return 0;
+ 164              		.loc 1 68 0
+ 165 005a 238A     		ldrh	r3, [r4, #16]
+ 166 005c 23B1     		cbz	r3, .L10
+  69:Ourwares/yprintf.c **** 
+  70:Ourwares/yprintf.c **** 	/* Place Buffer Control Block on queue to SerialTaskSend */
+  71:Ourwares/yprintf.c **** 	vSerialTaskSendQueueBuf(ppbcb); // Place on queue
+ 167              		.loc 1 71 0
+ 168 005e 3046     		mov	r0, r6
+ 169 0060 FFF7FEFF 		bl	vSerialTaskSendQueueBuf
+ 170              	.LVL8:
+  72:Ourwares/yprintf.c **** 
+  73:Ourwares/yprintf.c **** 	return pbcb->size;
+ 171              		.loc 1 73 0
+ 172 0064 208A     		ldrh	r0, [r4, #16]
+ 173 0066 00E0     		b	.L9
+ 174              	.L10:
+  68:Ourwares/yprintf.c **** 
+ 175              		.loc 1 68 0
+ 176 0068 0020     		movs	r0, #0
+ 177              	.L9:
+  74:Ourwares/yprintf.c **** }
+ 178              		.loc 1 74 0
+ 179 006a 02B0     		add	sp, sp, #8
+ 180              	.LCFI7:
+ 181              		.cfi_def_cfa_offset 32
+ 182              		@ sp needed
+ 183 006c BDE8F040 		pop	{r4, r5, r6, r7, lr}
+ 184              	.LCFI8:
+ 185              		.cfi_restore 14
+ 186              		.cfi_restore 7
+ 187              		.cfi_restore 6
+ 188              		.cfi_restore 5
+ 189              		.cfi_restore 4
+ 190              		.cfi_def_cfa_offset 12
+ 191              	.LVL9:
+ 192 0070 03B0     		add	sp, sp, #12
+ 193              	.LCFI9:
+ 194              		.cfi_restore 3
+ 195              		.cfi_restore 2
+ 196              		.cfi_restore 1
+ 197              		.cfi_def_cfa_offset 0
+ 198 0072 7047     		bx	lr
+ 199              	.L13:
+ 200              		.align	2
+ 201              	.L12:
+ 202 0074 00000000 		.word	vsnprintfSemaphoreHandle
+ 203              		.cfi_endproc
+ 204              	.LFE70:
+ 206              		.section	.text.yputs,"ax",%progbits
+ 207              		.align	2
+ 208              		.global	yputs
+ 209              		.thumb
+ 210              		.thumb_func
+ 212              	yputs:
+ 213              	.LFB71:
+  75:Ourwares/yprintf.c **** /* **************************************************************************************
+ARM GAS  /tmp/ccOzIGCL.s 			page 6
+
+
+  76:Ourwares/yprintf.c ****  * int yputs(struct SERIALSENDTASKBCB** ppbcb, char* pchr);
+  77:Ourwares/yprintf.c ****  * @brief	: Send zero terminated string to SerialTaskSend
+  78:Ourwares/yprintf.c ****  * @param	: pbcb = pointer to pointer to stuct with uart pointers and buffer parameters
+  79:Ourwares/yprintf.c ****  * @return	: Number of chars sent
+  80:Ourwares/yprintf.c ****  * ************************************************************************************** */
+  81:Ourwares/yprintf.c **** int yputs(struct SERIALSENDTASKBCB** ppbcb, char* pchr)
+  82:Ourwares/yprintf.c **** {
+ 214              		.loc 1 82 0
+ 215              		.cfi_startproc
+ 216              		@ args = 0, pretend = 0, frame = 0
+ 217              		@ frame_needed = 0, uses_anonymous_args = 0
+ 218              	.LVL10:
+ 219 0000 F8B5     		push	{r3, r4, r5, r6, r7, lr}
+ 220              	.LCFI10:
+ 221              		.cfi_def_cfa_offset 24
+ 222              		.cfi_offset 3, -24
+ 223              		.cfi_offset 4, -20
+ 224              		.cfi_offset 5, -16
+ 225              		.cfi_offset 6, -12
+ 226              		.cfi_offset 7, -8
+ 227              		.cfi_offset 14, -4
+ 228 0002 0546     		mov	r5, r0
+ 229 0004 0E46     		mov	r6, r1
+  83:Ourwares/yprintf.c **** 	struct SERIALSENDTASKBCB* pbcb = *ppbcb;
+ 230              		.loc 1 83 0
+ 231 0006 0468     		ldr	r4, [r0]
+ 232              	.LVL11:
+  84:Ourwares/yprintf.c **** 	int sz = strlen(pchr); // Check length of input string
+ 233              		.loc 1 84 0
+ 234 0008 0846     		mov	r0, r1
+ 235              	.LVL12:
+ 236 000a FFF7FEFF 		bl	strlen
+ 237              	.LVL13:
+  85:Ourwares/yprintf.c **** 	if (sz == 0) return 0;
+ 238              		.loc 1 85 0
+ 239 000e B8B1     		cbz	r0, .L18
+ 240 0010 0746     		mov	r7, r0
+  86:Ourwares/yprintf.c **** 
+  87:Ourwares/yprintf.c **** 	/* Block if this buffer is not available. SerialSendTask will 'give' the semaphore 
+  88:Ourwares/yprintf.c ****       when the buffer has been sent. */
+  89:Ourwares/yprintf.c **** 	xSemaphoreTake(pbcb->semaphore, 6000);
+ 241              		.loc 1 89 0
+ 242 0012 0023     		movs	r3, #0
+ 243 0014 41F27072 		movw	r2, #6000
+ 244 0018 1946     		mov	r1, r3
+ 245 001a A068     		ldr	r0, [r4, #8]
+ 246              	.LVL14:
+ 247 001c FFF7FEFF 		bl	xQueueGenericReceive
+ 248              	.LVL15:
+  90:Ourwares/yprintf.c **** 
+  91:Ourwares/yprintf.c **** 	strncpy((char*)pbcb->pbuf,pchr,pbcb->maxsize);	// Copy and limit size.
+ 249              		.loc 1 91 0
+ 250 0020 628A     		ldrh	r2, [r4, #18]
+ 251 0022 3146     		mov	r1, r6
+ 252 0024 E068     		ldr	r0, [r4, #12]
+ 253 0026 FFF7FEFF 		bl	strncpy
+ 254              	.LVL16:
+ARM GAS  /tmp/ccOzIGCL.s 			page 7
+
+
+  92:Ourwares/yprintf.c **** 
+  93:Ourwares/yprintf.c **** 	/* Set size serial send will use. */
+  94:Ourwares/yprintf.c **** 	if (sz >= pbcb->maxsize)	// Did strcpy truncate?
+ 255              		.loc 1 94 0
+ 256 002a 638A     		ldrh	r3, [r4, #18]
+ 257 002c 9F42     		cmp	r7, r3
+ 258 002e 01DB     		blt	.L16
+  95:Ourwares/yprintf.c **** 		pbcb->size = pbcb->maxsize;	// Yes
+ 259              		.loc 1 95 0
+ 260 0030 2382     		strh	r3, [r4, #16]	@ movhi
+ 261 0032 00E0     		b	.L17
+ 262              	.L16:
+  96:Ourwares/yprintf.c **** 	else
+  97:Ourwares/yprintf.c **** 		pbcb->size = sz;	// No
+ 263              		.loc 1 97 0
+ 264 0034 2782     		strh	r7, [r4, #16]	@ movhi
+ 265              	.L17:
+  98:Ourwares/yprintf.c **** 
+  99:Ourwares/yprintf.c **** 	vSerialTaskSendQueueBuf(ppbcb); // Place on queue
+ 266              		.loc 1 99 0
+ 267 0036 2846     		mov	r0, r5
+ 268 0038 FFF7FEFF 		bl	vSerialTaskSendQueueBuf
+ 269              	.LVL17:
+ 100:Ourwares/yprintf.c **** 	return pbcb->size; 
+ 270              		.loc 1 100 0
+ 271 003c 208A     		ldrh	r0, [r4, #16]
+ 272 003e F8BD     		pop	{r3, r4, r5, r6, r7, pc}
+ 273              	.LVL18:
+ 274              	.L18:
+  85:Ourwares/yprintf.c **** 
+ 275              		.loc 1 85 0
+ 276 0040 0020     		movs	r0, #0
+ 277              	.LVL19:
+ 101:Ourwares/yprintf.c **** }
+ 278              		.loc 1 101 0
+ 279 0042 F8BD     		pop	{r3, r4, r5, r6, r7, pc}
+ 280              		.cfi_endproc
+ 281              	.LFE71:
+ 283              		.comm	vsnprintfSemaphoreHandle,4,4
+ 284              		.section	.bss.sw,"aw",%nobits
+ 285              		.set	.LANCHOR0,. + 0
+ 288              	sw:
+ 289 0000 00       		.space	1
+ 290              		.text
+ 291              	.Letext0:
+ 292              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 293              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 294              		.file 4 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/lib/gcc/arm-none-eabi/5.4.1/include/stda
+ 295              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 296              		.file 6 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 297              		.file 7 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 298              		.file 8 "<built-in>"
+ 299              		.file 9 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h"
+ 300              		.file 10 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 301              		.file 11 "Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h"
+ 302              		.file 12 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 303              		.file 13 "Middlewares/Third_Party/FreeRTOS/Source/include/queue.h"
+ARM GAS  /tmp/ccOzIGCL.s 			page 8
+
+
+ 304              		.file 14 "Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h"
+ 305              		.file 15 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 306              		.file 16 "Ourwares/SerialTaskSend.h"
+ 307              		.file 17 "Drivers/CMSIS/Include/core_cm3.h"
+ 308              		.file 18 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/stdio.h"
+ 309              		.file 19 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/string.h"
+ARM GAS  /tmp/ccOzIGCL.s 			page 9
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 yprintf.c
+     /tmp/ccOzIGCL.s:20     .text.yprintf_init:00000000 $t
+     /tmp/ccOzIGCL.s:25     .text.yprintf_init:00000000 yprintf_init
+     /tmp/ccOzIGCL.s:79     .text.yprintf_init:00000034 $d
+                            *COM*:00000004 vsnprintfSemaphoreHandle
+     /tmp/ccOzIGCL.s:85     .text.yprintf:00000000 $t
+     /tmp/ccOzIGCL.s:90     .text.yprintf:00000000 yprintf
+     /tmp/ccOzIGCL.s:202    .text.yprintf:00000074 $d
+     /tmp/ccOzIGCL.s:207    .text.yputs:00000000 $t
+     /tmp/ccOzIGCL.s:212    .text.yputs:00000000 yputs
+     /tmp/ccOzIGCL.s:288    .bss.sw:00000000 sw
+     /tmp/ccOzIGCL.s:289    .bss.sw:00000000 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+osSemaphoreCreate
+xQueueGenericReceive
+vsnprintf
+xQueueGenericSend
+vSerialTaskSendQueueBuf
+strlen
+strncpy

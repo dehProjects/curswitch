@@ -1,0 +1,440 @@
+ARM GAS  /tmp/ccU2s9nh.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m3
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"payload_extract.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.payload_extract,"ax",%progbits
+  20              		.align	2
+  21              		.global	payload_extract
+  22              		.thumb
+  23              		.thumb_func
+  25              	payload_extract:
+  26              	.LFB69:
+  27              		.file 1 "Ourwares/payload_extract.c"
+   1:Ourwares/payload_extract.c **** /******************************************************************************
+   2:Ourwares/payload_extract.c **** * File Name          : payload_extract.c
+   3:Ourwares/payload_extract.c **** * Date First Issued  : 02/23/2019
+   4:Ourwares/payload_extract.c **** * Description        : Extract payload from CAN msg
+   5:Ourwares/payload_extract.c **** *******************************************************************************/
+   6:Ourwares/payload_extract.c **** 
+   7:Ourwares/payload_extract.c **** #include "payload_extract.h"
+   8:Ourwares/payload_extract.c **** 
+   9:Ourwares/payload_extract.c **** /* Definitions of payload type generated from database. */
+  10:Ourwares/payload_extract.c **** #include "../../../GliderWinchCommons/embed/svn_common/trunk/db/gen_db.h"
+  11:Ourwares/payload_extract.c **** 
+  12:Ourwares/payload_extract.c **** /* NOTE:
+  13:Ourwares/payload_extract.c **** If the CAN msg does not have a DLC big enough to accommodate the payload
+  14:Ourwares/payload_extract.c **** format designated the mailbox pre8 and union are not updated, nor is the
+  15:Ourwares/payload_extract.c **** update counter incremented.  The DTW in the CAN msg will have been updated
+  16:Ourwares/payload_extract.c **** when the CAN msg was received.  
+  17:Ourwares/payload_extract.c **** 
+  18:Ourwares/payload_extract.c **** Therefore, checking for a stale CAN reading by checking only the DTW could 
+  19:Ourwares/payload_extract.c **** result in stale readings not being detected if the DLC reading is wrong.  This
+  20:Ourwares/payload_extract.c **** situation would be some sort of software error whereby "someone" is sends a
+  21:Ourwares/payload_extract.c **** CAN msg with a bogus CAN id, or payload that is incorrect.
+  22:Ourwares/payload_extract.c **** 
+  23:Ourwares/payload_extract.c **** The CAN msg embedded in the mailbox is always copied from the circular buffer
+  24:Ourwares/payload_extract.c **** receiving incoming CAN msgs.
+  25:Ourwares/payload_extract.c **** 
+  26:Ourwares/payload_extract.c **** The following are not implemented, however the payload will be loaded into
+  27:Ourwares/payload_extract.c **** the eight byte union--
+  28:Ourwares/payload_extract.c **** F34F	3/4 float
+  29:Ourwares/payload_extract.c **** HF    1/2 float
+  30:Ourwares/payload_extract.c **** LAT_LON_HT
+  31:Ourwares/payload_extract.c **** */
+ARM GAS  /tmp/ccU2s9nh.s 			page 2
+
+
+  32:Ourwares/payload_extract.c **** 
+  33:Ourwares/payload_extract.c **** /* ************************************************************************* 
+  34:Ourwares/payload_extract.c ****  * void payload_extract(struct MAILBOXCAN* pmbx);
+  35:Ourwares/payload_extract.c ****  *	@brief	: Lookup CAN ID and load mailbox with extract payload reading(s)
+  36:Ourwares/payload_extract.c ****  * @param	: pmbx  = pointer to mailbox
+  37:Ourwares/payload_extract.c ****  * *************************************************************************/
+  38:Ourwares/payload_extract.c **** void payload_extract(struct MAILBOXCAN* pmbx)
+  39:Ourwares/payload_extract.c **** {
+  28              		.loc 1 39 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              		@ link register save eliminated.
+  33              	.LVL0:
+  40:Ourwares/payload_extract.c **** 	switch (pmbx->paytype)
+  34              		.loc 1 40 0
+  35 0000 90F83830 		ldrb	r3, [r0, #56]	@ zero_extendqisi2
+  36 0004 013B     		subs	r3, r3, #1
+  37 0006 232B     		cmp	r3, #35
+  38 0008 00F28C80 		bhi	.L2
+  39 000c DFE803F0 		tbb	[pc, r3]
+  40              	.L4:
+  41 0010 19       		.byte	(.L3-.L4)/2
+  42 0011 7F       		.byte	(.L5-.L4)/2
+  43 0012 19       		.byte	(.L3-.L4)/2
+  44 0013 7F       		.byte	(.L5-.L4)/2
+  45 0014 40       		.byte	(.L6-.L4)/2
+  46 0015 19       		.byte	(.L3-.L4)/2
+  47 0016 7F       		.byte	(.L5-.L4)/2
+  48 0017 40       		.byte	(.L6-.L4)/2
+  49 0018 8A       		.byte	(.L2-.L4)/2
+  50 0019 8A       		.byte	(.L2-.L4)/2
+  51 001a 22       		.byte	(.L7-.L4)/2
+  52 001b 31       		.byte	(.L8-.L4)/2
+  53 001c 31       		.byte	(.L8-.L4)/2
+  54 001d 31       		.byte	(.L8-.L4)/2
+  55 001e 52       		.byte	(.L9-.L4)/2
+  56 001f 52       		.byte	(.L9-.L4)/2
+  57 0020 52       		.byte	(.L9-.L4)/2
+  58 0021 8A       		.byte	(.L2-.L4)/2
+  59 0022 8A       		.byte	(.L2-.L4)/2
+  60 0023 8A       		.byte	(.L2-.L4)/2
+  61 0024 40       		.byte	(.L6-.L4)/2
+  62 0025 8A       		.byte	(.L2-.L4)/2
+  63 0026 12       		.byte	(.L10-.L4)/2
+  64 0027 40       		.byte	(.L6-.L4)/2
+  65 0028 8A       		.byte	(.L2-.L4)/2
+  66 0029 67       		.byte	(.L11-.L4)/2
+  67 002a 8A       		.byte	(.L2-.L4)/2
+  68 002b 8A       		.byte	(.L2-.L4)/2
+  69 002c 8A       		.byte	(.L2-.L4)/2
+  70 002d 8A       		.byte	(.L2-.L4)/2
+  71 002e 8A       		.byte	(.L2-.L4)/2
+  72 002f 8A       		.byte	(.L2-.L4)/2
+  73 0030 8A       		.byte	(.L2-.L4)/2
+  74 0031 8A       		.byte	(.L2-.L4)/2
+  75 0032 8A       		.byte	(.L2-.L4)/2
+ARM GAS  /tmp/ccU2s9nh.s 			page 3
+
+
+  76 0033 12       		.byte	(.L10-.L4)/2
+  77              		.p2align 1
+  78              	.L10:
+  41:Ourwares/payload_extract.c **** 	{
+  42:Ourwares/payload_extract.c **** 	case U8:
+  43:Ourwares/payload_extract.c **** 	case U8_VAR:
+  44:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 1)
+  79              		.loc 1 44 0
+  80 0034 4368     		ldr	r3, [r0, #4]
+  81 0036 002B     		cmp	r3, #0
+  82 0038 7BD0     		beq	.L1
+  45:Ourwares/payload_extract.c **** 		{
+  46:Ourwares/payload_extract.c **** 			pmbx->mbx.pre8[0] = pmbx->ncan.can.cd.uc[0];
+  83              		.loc 1 46 0
+  84 003a 037A     		ldrb	r3, [r0, #8]	@ zero_extendqisi2
+  85 003c 80F82830 		strb	r3, [r0, #40]
+  86 0040 7047     		bx	lr
+  87              	.L3:
+  47:Ourwares/payload_extract.c **** 		}
+  48:Ourwares/payload_extract.c **** 		break;		
+  49:Ourwares/payload_extract.c **** 	case FF:
+  50:Ourwares/payload_extract.c **** 	case U32:
+  51:Ourwares/payload_extract.c **** 	case S32:
+  52:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 4)
+  88              		.loc 1 52 0
+  89 0042 4368     		ldr	r3, [r0, #4]
+  90 0044 032B     		cmp	r3, #3
+  91 0046 74D9     		bls	.L1
+  53:Ourwares/payload_extract.c **** 		{ // Place 1st four bytes of payload in union
+  54:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i32[0] = pmbx->ncan.can.cd.ui[0];
+  92              		.loc 1 54 0
+  93 0048 8368     		ldr	r3, [r0, #8]
+  94 004a 8361     		str	r3, [r0, #24]
+  55:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;
+  95              		.loc 1 55 0
+  96 004c 436B     		ldr	r3, [r0, #52]
+  97 004e 0133     		adds	r3, r3, #1
+  98 0050 4363     		str	r3, [r0, #52]
+  99 0052 7047     		bx	lr
+ 100              	.L7:
+  56:Ourwares/payload_extract.c **** 		}
+  57:Ourwares/payload_extract.c **** 		break;	
+  58:Ourwares/payload_extract.c **** 	case xFF:
+  59:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 5)
+ 101              		.loc 1 59 0
+ 102 0054 4368     		ldr	r3, [r0, #4]
+ 103 0056 042B     		cmp	r3, #4
+ 104 0058 6BD9     		bls	.L1
+  60:Ourwares/payload_extract.c **** 		{ // Place [1]-[4] of payload in union 
+  61:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[0] = pmbx->ncan.can.cd.uc[1];
+ 105              		.loc 1 61 0
+ 106 005a 437A     		ldrb	r3, [r0, #9]	@ zero_extendqisi2
+ 107 005c 0376     		strb	r3, [r0, #24]
+  62:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[1] = pmbx->ncan.can.cd.uc[2];
+ 108              		.loc 1 62 0
+ 109 005e 837A     		ldrb	r3, [r0, #10]	@ zero_extendqisi2
+ 110 0060 4376     		strb	r3, [r0, #25]
+ARM GAS  /tmp/ccU2s9nh.s 			page 4
+
+
+  63:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[2] = pmbx->ncan.can.cd.uc[3];
+ 111              		.loc 1 63 0
+ 112 0062 C37A     		ldrb	r3, [r0, #11]	@ zero_extendqisi2
+ 113 0064 8376     		strb	r3, [r0, #26]
+  64:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[3] = pmbx->ncan.can.cd.uc[4];
+ 114              		.loc 1 64 0
+ 115 0066 037B     		ldrb	r3, [r0, #12]	@ zero_extendqisi2
+ 116 0068 C376     		strb	r3, [r0, #27]
+  65:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;
+ 117              		.loc 1 65 0
+ 118 006a 436B     		ldr	r3, [r0, #52]
+ 119 006c 0133     		adds	r3, r3, #1
+ 120 006e 4363     		str	r3, [r0, #52]
+ 121 0070 7047     		bx	lr
+ 122              	.L8:
+  66:Ourwares/payload_extract.c **** 		}
+  67:Ourwares/payload_extract.c **** 		break;	
+  68:Ourwares/payload_extract.c **** 	case xxFF:
+  69:Ourwares/payload_extract.c **** 	case xxU32:
+  70:Ourwares/payload_extract.c **** 	case xxS32:
+  71:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 6)
+ 123              		.loc 1 71 0
+ 124 0072 4368     		ldr	r3, [r0, #4]
+ 125 0074 052B     		cmp	r3, #5
+ 126 0076 5CD9     		bls	.L1
+  72:Ourwares/payload_extract.c **** 		{ // Place [2]-[5] of payload in union 
+  73:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[0] = pmbx->ncan.can.cd.uc[2];
+ 127              		.loc 1 73 0
+ 128 0078 837A     		ldrb	r3, [r0, #10]	@ zero_extendqisi2
+ 129 007a 0376     		strb	r3, [r0, #24]
+  74:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[1] = pmbx->ncan.can.cd.uc[3];
+ 130              		.loc 1 74 0
+ 131 007c C37A     		ldrb	r3, [r0, #11]	@ zero_extendqisi2
+ 132 007e 4376     		strb	r3, [r0, #25]
+  75:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[2] = pmbx->ncan.can.cd.uc[4];
+ 133              		.loc 1 75 0
+ 134 0080 037B     		ldrb	r3, [r0, #12]	@ zero_extendqisi2
+ 135 0082 8376     		strb	r3, [r0, #26]
+  76:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[3] = pmbx->ncan.can.cd.uc[5];
+ 136              		.loc 1 76 0
+ 137 0084 437B     		ldrb	r3, [r0, #13]	@ zero_extendqisi2
+ 138 0086 C376     		strb	r3, [r0, #27]
+  77:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;
+ 139              		.loc 1 77 0
+ 140 0088 436B     		ldr	r3, [r0, #52]
+ 141 008a 0133     		adds	r3, r3, #1
+ 142 008c 4363     		str	r3, [r0, #52]
+ 143 008e 7047     		bx	lr
+ 144              	.L6:
+  78:Ourwares/payload_extract.c **** 		}
+  79:Ourwares/payload_extract.c **** 		break;
+  80:Ourwares/payload_extract.c **** 	case U8_FF:
+  81:Ourwares/payload_extract.c **** 	case U8_U32:
+  82:Ourwares/payload_extract.c **** 	case U8_S32:
+  83:Ourwares/payload_extract.c **** 	case UNIXTIME:
+  84:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 5)
+ 145              		.loc 1 84 0
+ARM GAS  /tmp/ccU2s9nh.s 			page 5
+
+
+ 146 0090 4368     		ldr	r3, [r0, #4]
+ 147 0092 042B     		cmp	r3, #4
+ 148 0094 4DD9     		bls	.L1
+  85:Ourwares/payload_extract.c **** 		{ 
+  86:Ourwares/payload_extract.c **** 			pmbx->mbx.pre8[0] = pmbx->ncan.can.cd.uc[0];
+ 149              		.loc 1 86 0
+ 150 0096 037A     		ldrb	r3, [r0, #8]	@ zero_extendqisi2
+ 151 0098 80F82830 		strb	r3, [r0, #40]
+  87:Ourwares/payload_extract.c **** 			// Place [2]-[5] of payload in union 
+  88:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[0] = pmbx->ncan.can.cd.uc[1];
+ 152              		.loc 1 88 0
+ 153 009c 437A     		ldrb	r3, [r0, #9]	@ zero_extendqisi2
+ 154 009e 0376     		strb	r3, [r0, #24]
+  89:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[1] = pmbx->ncan.can.cd.uc[2];
+ 155              		.loc 1 89 0
+ 156 00a0 837A     		ldrb	r3, [r0, #10]	@ zero_extendqisi2
+ 157 00a2 4376     		strb	r3, [r0, #25]
+  90:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[2] = pmbx->ncan.can.cd.uc[3];
+ 158              		.loc 1 90 0
+ 159 00a4 C37A     		ldrb	r3, [r0, #11]	@ zero_extendqisi2
+ 160 00a6 8376     		strb	r3, [r0, #26]
+  91:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[3] = pmbx->ncan.can.cd.uc[4];
+ 161              		.loc 1 91 0
+ 162 00a8 037B     		ldrb	r3, [r0, #12]	@ zero_extendqisi2
+ 163 00aa C376     		strb	r3, [r0, #27]
+  92:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;		
+ 164              		.loc 1 92 0
+ 165 00ac 436B     		ldr	r3, [r0, #52]
+ 166 00ae 0133     		adds	r3, r3, #1
+ 167 00b0 4363     		str	r3, [r0, #52]
+ 168 00b2 7047     		bx	lr
+ 169              	.L9:
+  93:Ourwares/payload_extract.c **** 		}
+  94:Ourwares/payload_extract.c **** 		break;	
+  95:Ourwares/payload_extract.c **** 	case U8_U8_FF:
+  96:Ourwares/payload_extract.c **** 	case U8_U8_U32:
+  97:Ourwares/payload_extract.c **** 	case U8_U8_S32:
+  98:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 6)
+ 170              		.loc 1 98 0
+ 171 00b4 4368     		ldr	r3, [r0, #4]
+ 172 00b6 052B     		cmp	r3, #5
+ 173 00b8 3BD9     		bls	.L1
+  99:Ourwares/payload_extract.c **** 		{ 
+ 100:Ourwares/payload_extract.c **** 			pmbx->mbx.pre8[0] = pmbx->ncan.can.cd.uc[0];
+ 174              		.loc 1 100 0
+ 175 00ba 037A     		ldrb	r3, [r0, #8]	@ zero_extendqisi2
+ 176 00bc 80F82830 		strb	r3, [r0, #40]
+ 101:Ourwares/payload_extract.c **** 			pmbx->mbx.pre8[1] = pmbx->ncan.can.cd.uc[1];
+ 177              		.loc 1 101 0
+ 178 00c0 437A     		ldrb	r3, [r0, #9]	@ zero_extendqisi2
+ 179 00c2 80F82930 		strb	r3, [r0, #41]
+ 102:Ourwares/payload_extract.c **** 			// Place [2]-[5] of payload in union 
+ 103:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[0] = pmbx->ncan.can.cd.uc[2];
+ 180              		.loc 1 103 0
+ 181 00c6 837A     		ldrb	r3, [r0, #10]	@ zero_extendqisi2
+ 182 00c8 0376     		strb	r3, [r0, #24]
+ 104:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[1] = pmbx->ncan.can.cd.uc[3];
+ARM GAS  /tmp/ccU2s9nh.s 			page 6
+
+
+ 183              		.loc 1 104 0
+ 184 00ca C37A     		ldrb	r3, [r0, #11]	@ zero_extendqisi2
+ 185 00cc 4376     		strb	r3, [r0, #25]
+ 105:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[2] = pmbx->ncan.can.cd.uc[4];
+ 186              		.loc 1 105 0
+ 187 00ce 037B     		ldrb	r3, [r0, #12]	@ zero_extendqisi2
+ 188 00d0 8376     		strb	r3, [r0, #26]
+ 106:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[3] = pmbx->ncan.can.cd.uc[5];
+ 189              		.loc 1 106 0
+ 190 00d2 437B     		ldrb	r3, [r0, #13]	@ zero_extendqisi2
+ 191 00d4 C376     		strb	r3, [r0, #27]
+ 107:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;		
+ 192              		.loc 1 107 0
+ 193 00d6 436B     		ldr	r3, [r0, #52]
+ 194 00d8 0133     		adds	r3, r3, #1
+ 195 00da 4363     		str	r3, [r0, #52]
+ 196 00dc 7047     		bx	lr
+ 197              	.L11:
+ 108:Ourwares/payload_extract.c **** 		}
+ 109:Ourwares/payload_extract.c **** 		break;
+ 110:Ourwares/payload_extract.c **** 	case U8_U8_U8_U32:
+ 111:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 7)
+ 198              		.loc 1 111 0
+ 199 00de 4368     		ldr	r3, [r0, #4]
+ 200 00e0 062B     		cmp	r3, #6
+ 201 00e2 26D9     		bls	.L1
+ 112:Ourwares/payload_extract.c **** 		{ 
+ 113:Ourwares/payload_extract.c **** 			pmbx->mbx.pre8[0] = pmbx->ncan.can.cd.uc[0];
+ 202              		.loc 1 113 0
+ 203 00e4 037A     		ldrb	r3, [r0, #8]	@ zero_extendqisi2
+ 204 00e6 80F82830 		strb	r3, [r0, #40]
+ 114:Ourwares/payload_extract.c **** 			pmbx->mbx.pre8[1] = pmbx->ncan.can.cd.uc[1];
+ 205              		.loc 1 114 0
+ 206 00ea 437A     		ldrb	r3, [r0, #9]	@ zero_extendqisi2
+ 207 00ec 80F82930 		strb	r3, [r0, #41]
+ 115:Ourwares/payload_extract.c **** 			pmbx->mbx.pre8[2] = pmbx->ncan.can.cd.uc[2];
+ 208              		.loc 1 115 0
+ 209 00f0 837A     		ldrb	r3, [r0, #10]	@ zero_extendqisi2
+ 210 00f2 80F82A30 		strb	r3, [r0, #42]
+ 116:Ourwares/payload_extract.c **** 			// Place [2]-[5] of payload in union 
+ 117:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[0] = pmbx->ncan.can.cd.uc[3];
+ 211              		.loc 1 117 0
+ 212 00f6 C37A     		ldrb	r3, [r0, #11]	@ zero_extendqisi2
+ 213 00f8 0376     		strb	r3, [r0, #24]
+ 118:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[1] = pmbx->ncan.can.cd.uc[4];
+ 214              		.loc 1 118 0
+ 215 00fa 037B     		ldrb	r3, [r0, #12]	@ zero_extendqisi2
+ 216 00fc 4376     		strb	r3, [r0, #25]
+ 119:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[2] = pmbx->ncan.can.cd.uc[5];
+ 217              		.loc 1 119 0
+ 218 00fe 437B     		ldrb	r3, [r0, #13]	@ zero_extendqisi2
+ 219 0100 8376     		strb	r3, [r0, #26]
+ 120:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i8[3] = pmbx->ncan.can.cd.uc[6];
+ 220              		.loc 1 120 0
+ 221 0102 837B     		ldrb	r3, [r0, #14]	@ zero_extendqisi2
+ 222 0104 C376     		strb	r3, [r0, #27]
+ 121:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;		
+ARM GAS  /tmp/ccU2s9nh.s 			page 7
+
+
+ 223              		.loc 1 121 0
+ 224 0106 436B     		ldr	r3, [r0, #52]
+ 225 0108 0133     		adds	r3, r3, #1
+ 226 010a 4363     		str	r3, [r0, #52]
+ 227 010c 7047     		bx	lr
+ 228              	.L5:
+ 122:Ourwares/payload_extract.c **** 		}
+ 123:Ourwares/payload_extract.c **** 		break;
+ 124:Ourwares/payload_extract.c **** 	case FF_FF:		// Two four byte readings
+ 125:Ourwares/payload_extract.c **** 	case U32_U32:
+ 126:Ourwares/payload_extract.c **** 	case S32_S32:
+ 127:Ourwares/payload_extract.c **** 		if (pmbx->ncan.can.dlc >= 8)
+ 229              		.loc 1 127 0
+ 230 010e 4368     		ldr	r3, [r0, #4]
+ 231 0110 072B     		cmp	r3, #7
+ 232 0112 0ED9     		bls	.L1
+ 128:Ourwares/payload_extract.c **** 		{ // Place [0]-[7] of payload in union 
+ 129:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i64 = pmbx->ncan.can.cd.ull;
+ 233              		.loc 1 129 0
+ 234 0114 D0E90223 		ldrd	r2, [r0, #8]
+ 235 0118 C0E90623 		strd	r2, [r0, #24]
+ 130:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;
+ 236              		.loc 1 130 0
+ 237 011c 436B     		ldr	r3, [r0, #52]
+ 238 011e 0133     		adds	r3, r3, #1
+ 239 0120 4363     		str	r3, [r0, #52]
+ 240 0122 7047     		bx	lr
+ 241              	.L2:
+ 131:Ourwares/payload_extract.c **** 		}
+ 132:Ourwares/payload_extract.c **** 		break;	
+ 133:Ourwares/payload_extract.c **** 
+ 134:Ourwares/payload_extract.c **** 	// Payload type not implemented
+ 135:Ourwares/payload_extract.c **** 	case UNDEF:
+ 136:Ourwares/payload_extract.c **** 	default: 
+ 137:Ourwares/payload_extract.c **** 		{ // Place [0]-[7] of payload in union 
+ 138:Ourwares/payload_extract.c **** 			pmbx->mbx.u.i64 = pmbx->ncan.can.cd.ull;
+ 242              		.loc 1 138 0
+ 243 0124 D0E90223 		ldrd	r2, [r0, #8]
+ 244 0128 C0E90623 		strd	r2, [r0, #24]
+ 139:Ourwares/payload_extract.c **** 			pmbx->ctr +=1 ;
+ 245              		.loc 1 139 0
+ 246 012c 436B     		ldr	r3, [r0, #52]
+ 247 012e 0133     		adds	r3, r3, #1
+ 248 0130 4363     		str	r3, [r0, #52]
+ 249              	.L1:
+ 250 0132 7047     		bx	lr
+ 251              		.cfi_endproc
+ 252              	.LFE69:
+ 254              		.text
+ 255              	.Letext0:
+ 256              		.file 2 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/machine/_default_t
+ 257              		.file 3 "/home/deh/launchpad/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/include/sys/_stdint.h"
+ 258              		.file 4 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 259              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h"
+ 260              		.file 6 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_can.h"
+ 261              		.file 7 "Ourwares/common_misc.h"
+ 262              		.file 8 "Ourwares/common_can.h"
+ARM GAS  /tmp/ccU2s9nh.s 			page 8
+
+
+ 263              		.file 9 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 264              		.file 10 "Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h"
+ 265              		.file 11 "Ourwares/can_iface.h"
+ 266              		.file 12 "Ourwares/MailboxTask.h"
+ 267              		.file 13 "Drivers/CMSIS/Include/core_cm3.h"
+ARM GAS  /tmp/ccU2s9nh.s 			page 9
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 payload_extract.c
+     /tmp/ccU2s9nh.s:20     .text.payload_extract:00000000 $t
+     /tmp/ccU2s9nh.s:25     .text.payload_extract:00000000 payload_extract
+     /tmp/ccU2s9nh.s:41     .text.payload_extract:00000010 $d
+     /tmp/ccU2s9nh.s:77     .text.payload_extract:00000034 $t
+                     .debug_frame:00000010 $d
+
+NO UNDEFINED SYMBOLS
